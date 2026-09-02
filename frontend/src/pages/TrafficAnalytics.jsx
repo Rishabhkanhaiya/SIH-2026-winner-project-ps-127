@@ -218,143 +218,73 @@ export default function TrafficAnalytics() {
         </div>
       </ChartCard>
 
-      {/* Mid-Row: Vehicle Classification PieChart & Incident Frequency BarChart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Vehicle Classification */}
-        <ChartCard
-          title="Vehicle Fleet Classification"
-          subtitle="AI model classification breakdown (%)"
-          badge="Live Feed"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
-            <div className="w-48 h-48 flex-shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={VEHICLE_TYPES}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {VEHICLE_TYPES.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#101C2D',
-                      borderColor: '#1E293B',
-                      borderRadius: '8px',
-                      color: '#FFFFFF',
-                      fontSize: '12px'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
 
-            <div className="space-y-2.5 flex-1 w-full">
-              {VEHICLE_TYPES.map((vt, i) => (
-                <div key={vt.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{vt.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-white">{vt.value}%</span>
-                    <span className="text-slate-400 text-[11px]">({Math.round((vt.value / 100) * 12400).toLocaleString()})</span>
-                  </div>
+      {/* Vehicle Fleet Classification — full width */}
+      <ChartCard
+        title="Vehicle Fleet Classification"
+        subtitle="Classification breakdown by vehicle type (%)"
+        badge="Live Feed"
+      >
+        <div className="flex flex-col sm:flex-row items-center gap-6 pt-2">
+          <div className="w-48 h-48 flex-shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={VEHICLE_TYPES}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={80}
+                  paddingAngle={3}
+                  dataKey="value"
+                >
+                  {VEHICLE_TYPES.map((_, i) => (
+                    <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#101C2D',
+                    borderColor: '#1E293B',
+                    borderRadius: '8px',
+                    color: '#FFFFFF',
+                    fontSize: '12px'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="space-y-2.5 flex-1 w-full">
+            {VEHICLE_TYPES.map((vt, i) => (
+              <div key={vt.name} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{vt.name}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </ChartCard>
-
-        {/* Incident Frequency by Hour */}
-        <ChartCard
-          title="Incident Severity Distribution"
-          subtitle="Detected anomalies stacked by hourly frequency"
-          badge="Past 12 Hours"
-        >
-          <div className="h-56 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={INCIDENTS_BY_HOUR} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" />
-                <XAxis dataKey="hour" tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#101C2D',
-                    borderColor: '#1E293B',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '12px'
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
-                <Bar dataKey="high" stackId="a" fill="#DC2626" name="High Priority" radius={[0, 0, 2, 2]} />
-                <Bar dataKey="medium" stackId="a" fill="#D97706" name="Medium Priority" />
-                <Bar dataKey="low" stackId="a" fill="#2563EB" name="Low Priority" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
-
-      </div>
-
-      {/* Bottom Row: Top Active Camera Ranking & Zone Matrix */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Top Camera Activity Horizontal BarChart */}
-        <ChartCard
-          title="Top Camera Activity Ranking"
-          subtitle="Highest vehicle detection volume by camera node"
-          badge="Top 8 Nodes"
-        >
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={CAMERA_ACTIVITY}
-                layout="vertical"
-                margin={{ top: 5, right: 20, left: 20, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.15)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} width={65} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#101C2D',
-                    borderColor: '#1E293B',
-                    borderRadius: '8px',
-                    color: '#FFFFFF',
-                    fontSize: '12px'
-                  }}
-                  formatter={(val, name, props) => [`${val.toLocaleString()} vehicles`, props.payload.location]}
-                />
-                <Bar dataKey="vehicles" fill="#2563EB" radius={[0, 4, 4, 0]} maxBarSize={16} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </ChartCard>
-
-        {/* Zone Congestion & Throughput Matrix */}
-        <div className="rounded-xl p-5 bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-sm font-bold text-slate-900 dark:text-white">Zone Congestion Breakdown</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Corridor operational states and average travel pace</div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900 dark:text-white">{vt.value}%</span>
+                  <span className="text-slate-400 text-[11px]">({Math.round((vt.value / 100) * 12400).toLocaleString()})</span>
+                </div>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
-                Matrix
-              </span>
-            </div>
+            ))}
+          </div>
+        </div>
+      </ChartCard>
 
-            <div className="overflow-x-auto">
+      {/* Zone Congestion & Throughput Matrix — full width */}
+      <div className="rounded-xl p-5 bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white">Zone Congestion Breakdown</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Corridor operational states</div>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+            Matrix
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]/50">
@@ -387,10 +317,7 @@ export default function TrafficAnalytics() {
                 </tbody>
               </table>
             </div>
-          </div>
         </div>
-
-      </div>
 
       {/* ── Camera-Wise Traffic Analytics ─────────────────────────────── */}
       <div className="rounded-xl p-5 bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm">
