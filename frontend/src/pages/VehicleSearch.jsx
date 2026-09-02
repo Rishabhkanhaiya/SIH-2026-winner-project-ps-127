@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Car, MapPin, Clock, ArrowRight, X, Map, Eye, EyeOff, Flag, Navigation } from 'lucide-react'
+import { Search, Car, MapPin, Clock, ArrowRight, X, Map as MapIcon, Eye, EyeOff, Flag, Navigation } from 'lucide-react'
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -400,7 +400,7 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
       <div className="px-4 py-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]">
         <div className="flex items-center gap-3">
           <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400">
-            <Map className="w-4 h-4" />
+            <MapIcon className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -604,7 +604,7 @@ function VehicleCard({ vehicle, onClick, onShowMap }) {
           onClick={(e) => { e.stopPropagation(); onShowMap(vehicle) }}
           className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
         >
-          <Map className="w-3.5 h-3.5" />
+          <MapIcon className="w-3.5 h-3.5" />
           Show Trajectory on Map
         </button>
       </div>
@@ -804,7 +804,7 @@ export default function VehicleSearch() {
               : 'bg-white dark:bg-[#101C2D] text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10'
           }`}
         >
-          {mapMode === 'all' ? <EyeOff className="w-4 h-4" /> : <Map className="w-4 h-4" />}
+          {mapMode === 'all' ? <EyeOff className="w-4 h-4" /> : <MapIcon className="w-4 h-4" />}
           {mapMode === 'all' ? 'Hide All Trajectories' : 'Show All Trajectories'}
         </button>
       </div>
