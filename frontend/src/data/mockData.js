@@ -76,12 +76,32 @@ export const ANPR_RECORDS = Array.from({ length: 40 }, (_, i) => ({
   status: ['Verified','Clear','Flagged','Blacklisted'][i % 4 === 3 && i === 7 ? 3 : i % 3],
 }))
 
-export const TRAFFIC_24H = Array.from({ length: 24 }, (_, h) => ({
-  hour: `${String(h).padStart(2,'0')}:00`,
-  vehicles: Math.round(200 + 800 * Math.sin((h - 8) * Math.PI / 10) * (h >= 7 && h <= 21 ? 1 : 0.1) + Math.random() * 100),
-  incidents: Math.round(Math.random() * (h >= 8 && h <= 20 ? 3 : 1)),
-  pedestrians: Math.round(100 + 400 * Math.sin((h - 9) * Math.PI / 10) * (h >= 6 && h <= 22 ? 1 : 0.05) + Math.random() * 50),
-}))
+export const TRAFFIC_24H = [
+  { hour: '00:00', vehicles: 120, pedestrians: 20, incidents: 0 },
+  { hour: '01:00', vehicles: 80, pedestrians: 10, incidents: 0 },
+  { hour: '02:00', vehicles: 60, pedestrians: 5, incidents: 0 },
+  { hour: '03:00', vehicles: 50, pedestrians: 5, incidents: 0 },
+  { hour: '04:00', vehicles: 90, pedestrians: 15, incidents: 0 },
+  { hour: '05:00', vehicles: 210, pedestrians: 45, incidents: 1 },
+  { hour: '06:00', vehicles: 450, pedestrians: 120, incidents: 1 },
+  { hour: '07:00', vehicles: 890, pedestrians: 340, incidents: 2 },
+  { hour: '08:00', vehicles: 1450, pedestrians: 680, incidents: 3 },
+  { hour: '09:00', vehicles: 1840, pedestrians: 820, incidents: 4 },
+  { hour: '10:00', vehicles: 1650, pedestrians: 750, incidents: 3 },
+  { hour: '11:00', vehicles: 1320, pedestrians: 540, incidents: 2 },
+  { hour: '12:00', vehicles: 1150, pedestrians: 490, incidents: 2 },
+  { hour: '13:00', vehicles: 1210, pedestrians: 560, incidents: 2 },
+  { hour: '14:00', vehicles: 1180, pedestrians: 510, incidents: 1 },
+  { hour: '15:00', vehicles: 1250, pedestrians: 580, incidents: 2 },
+  { hour: '16:00', vehicles: 1480, pedestrians: 650, incidents: 2 },
+  { hour: '17:00', vehicles: 1750, pedestrians: 780, incidents: 3 },
+  { hour: '18:00', vehicles: 1890, pedestrians: 840, incidents: 4 },
+  { hour: '19:00', vehicles: 1620, pedestrians: 620, incidents: 3 },
+  { hour: '20:00', vehicles: 1150, pedestrians: 410, incidents: 2 },
+  { hour: '21:00', vehicles: 850, pedestrians: 280, incidents: 2 },
+  { hour: '22:00', vehicles: 540, pedestrians: 150, incidents: 1 },
+  { hour: '23:00', vehicles: 280, pedestrians: 80, incidents: 1 },
+]
 
 export const VEHICLE_TYPES = [
   { name: 'Cars/Sedans', value: 42, color: '#22D3EE' },
