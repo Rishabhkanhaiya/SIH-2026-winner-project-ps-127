@@ -159,60 +159,6 @@ export function getVehicleRoute(plate) {
   return route
 }
 
-// Persistent simulation registry across component re-renders
-const SIMULATION_REGISTRY = new Map()
-
-export function getVehicleSimulationState(plate, durationSec = 300) {
-  if (!plate) return { progress: 0, elapsed: 0, durationMs: durationSec * 1000 }
-  const now = Date.now()
-  if (!SIMULATION_REGISTRY.has(plate)) {
-    const charCodeSum = plate.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-    const initialOffsetSec = (charCodeSum * 23) % (durationSec * 0.75)
-    SIMULATION_REGISTRY.set(plate, {
-      startTime: now - initialOffsetSec * 1000,
-      durationMs: durationSec * 1000,
-    })
-  }
-  const entry = SIMULATION_REGISTRY.get(plate)
-  const elapsed = (now - entry.startTime) % entry.durationMs
-  const progress = Math.min(100, Math.max(0, (elapsed / entry.durationMs) * 100))
-  return { progress, elapsed, durationMs: entry.durationMs }
-}
-
-export function useVehicleTrajectoryProgress(plate, durationSec = 300) {
-  const [, setTick] = useState(() => Date.now())
-
-  useEffect(() => {
-    if (!plate) return
-    const interval = setInterval(() => {
-      setTick(Date.now())
-    }, 500)
-    return () => clearInterval(interval)
-  }, [plate])
-
-  return getVehicleSimulationState(plate, durationSec)
-}
-
-// Calculate interpolated coordinates along waypoints based on progress (0% - 100%)
-function getInterpolatedPosition(waypoints, progress) {
-  if (!waypoints || waypoints.length === 0) return null
-  if (waypoints.length === 1 || progress <= 0) return [waypoints[0].lat, waypoints[0].lng]
-  if (progress >= 100) {
-    const last = waypoints[waypoints.length - 1]
-    return [last.lat, last.lng]
-  }
-  const totalSegments = waypoints.length - 1
-  const globalT = (progress / 100) * totalSegments
-  const segIndex = Math.min(totalSegments - 1, Math.floor(globalT))
-  const segT = globalT - segIndex
-  const p1 = waypoints[segIndex]
-  const p2 = waypoints[segIndex + 1]
-  const lat = p1.lat + (p2.lat - p1.lat) * segT
-  const lng = p1.lng + (p2.lng - p1.lng) * segT
-  return [lat, lng]
-}
-
-
 
 function MapFitBounds({ points }) {
   const map = useMap()
@@ -296,7 +242,6 @@ function RoadPolyline({ waypoints, color }) {
 function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
   const plate = singleVehicle?.plate
   const routeData = plate ? getVehicleRoute(plate) : null
-  const { progress } = useVehicleTrajectoryProgress(plate || 'ALL_VEHICLES', routeData?.durationSec || 300)
 
   const allSightings = useMemo(() => {
     if (singleVehicle) {
@@ -331,17 +276,13 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-bold text-slate-900 dark:text-white">
-                {singleVehicle ? `Live Trajectory Map` : 'Live Trajectory Map — All Vehicles'}
+                {singleVehicle ? `Past Trajectory Map` : 'Past Trajectory Map — All Vehicles'}
               </span>
               {singleVehicle && (
                 <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-500/30">
                   {singleVehicle.plate}
                 </span>
               )}
-              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 live-dot" />
-                LIVE TRACKING
-              </span>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {singleVehicle
@@ -389,7 +330,6 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
 
           {allSightings.map(({ vehicle, sightings, color }) => {
             const vRoute = getVehicleRoute(vehicle.plate)
-            const vProg = singleVehicle ? progress : getVehicleSimulationState(vehicle.plate, vRoute.durationSec || 300).progress
 
             return (
               <React.Fragment key={vehicle.plate}>
@@ -403,8 +343,6 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
                 {sightings.map((s, i) => {
                   const isOrigin = i === 0
                   const isDest = i === sightings.length - 1
-                  const checkpointThreshold = (i / Math.max(1, sightings.length - 1)) * 100
-                  const isCleared = vProg >= checkpointThreshold
 
                   let icon
                   if (isOrigin) {
@@ -412,7 +350,7 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
                   } else if (isDest) {
                     icon = createDestIcon()
                   } else {
-                    icon = createWaypointIcon(color, i + 1, isCleared)
+                    icon = createWaypointIcon(color, i + 1, true)
                   }
 
                   return (
@@ -427,9 +365,6 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
                           <div className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">{s.location || s.label}</div>
                           <div className="text-slate-500">{s.camera} · {s.time}</div>
                           {s.speed && <div className="text-slate-500">Speed: {s.speed}</div>}
-                          <div className="text-[10px] font-bold mt-1" style={{ color: isCleared ? '#10B981' : '#64748B' }}>
-                            Status: {isCleared ? '✓ Cleared Checkpoint' : '⏳ Pending Passage'}
-                          </div>
                         </div>
                       </Popup>
                     </Marker>
@@ -501,8 +436,6 @@ function VehicleCard({ vehicle, onClick, onShowMap }) {
 function VehicleDetail({ vehicle, onClose }) {
   const routeData = getVehicleRoute(vehicle.plate)
   const traj = routeData?.waypoints || []
-  const { progress } = useVehicleTrajectoryProgress(vehicle.plate, routeData?.durationSec || 300)
-  const livePosition = traj.length > 1 ? getInterpolatedPosition(traj, progress) : null
 
   return (
     <div className="slide-in-right fixed top-14 right-0 bottom-0 w-96 z-50 overflow-y-auto bg-white dark:bg-[#101C2D] border-l border-slate-200 dark:border-slate-800 shadow-xl">
@@ -543,11 +476,7 @@ function VehicleDetail({ vehicle, onClose }) {
         {/* Grayscale Leaflet Map Card in Drawer */}
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#101C2D]">
           <div className="px-3 py-2 bg-slate-50 dark:bg-[#162438] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Live Trajectory Map</div>
-            <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 dark:text-green-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 live-dot" />
-              LIVE
-            </span>
+            <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Past Trajectory Map</div>
           </div>
           <div className="grayscale-map" style={{ height: '240px' }}>
             <MapContainer center={[18.52, 73.86]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
@@ -557,13 +486,11 @@ function VehicleDetail({ vehicle, onClose }) {
               {traj.map((s, i) => {
                 const isOrigin = i === 0
                 const isDest = i === traj.length - 1
-                const checkpointThreshold = (i / Math.max(1, traj.length - 1)) * 100
-                const isCleared = progress >= checkpointThreshold
 
                 let icon
                 if (isOrigin) icon = createOriginIcon()
                 else if (isDest) icon = createDestIcon()
-                else icon = createWaypointIcon('#3B82F6', i + 1, isCleared)
+                else icon = createWaypointIcon('#3B82F6', i + 1, true)
 
                 return (
                   <Marker key={i} position={[s.lat, s.lng]} icon={icon}>
@@ -581,35 +508,22 @@ function VehicleDetail({ vehicle, onClose }) {
 
         {/* Sighting Timeline */}
         <div className="rounded-xl p-4 bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-800">
-          <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider mb-3">Detection Timeline</div>
+          <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider mb-3">Detection History</div>
           <div className="relative">
-            <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-200 dark:bg-white/10" />
+            <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700" />
             <div className="space-y-4">
-              {traj.map((s, i) => {
-                const checkpointThreshold = (i / Math.max(1, traj.length - 1)) * 100
-                const isCleared = progress >= checkpointThreshold
-                return (
-                  <div key={i} className="flex items-start gap-3 relative pl-8">
-                    <div
-                      className="absolute left-2 top-1 w-2.5 h-2.5 rounded-full border-2 flex-shrink-0 transition-colors duration-500"
-                      style={{
-                        background: isCleared ? '#10B981' : '#94A3B8',
-                        borderColor: isCleared ? '#10B981' : '#cbd5e1',
-                      }}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-200">{s.location || s.label}</span>
-                        <span className="text-xs text-slate-500">{s.time}</span>
-                      </div>
-                      <div className="text-xs text-slate-500">{s.camera} {s.speed ? `· ${s.speed}` : ''}</div>
-                      <div className="text-xs font-medium mt-0.5" style={{ color: isCleared ? '#10B981' : '#64748B' }}>
-                        {isCleared ? '✓ Cleared Checkpoint' : '⏳ En Route'}
-                      </div>
+              {traj.map((s, i) => (
+                <div key={i} className="flex items-start gap-3 relative pl-8">
+                  <div className="absolute left-2 top-1 w-2.5 h-2.5 rounded-full border-2 border-blue-200 dark:border-blue-800 bg-blue-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-slate-900 dark:text-slate-200">{s.location || s.label}</span>
+                      <span className="text-xs text-slate-500">{s.time}</span>
                     </div>
+                    <div className="text-xs text-slate-500">{s.camera} {s.speed ? `· ${s.speed}` : ''}</div>
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
