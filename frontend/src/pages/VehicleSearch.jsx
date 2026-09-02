@@ -538,17 +538,7 @@ function VehicleDetail({ vehicle, onClose }) {
           </div>
         </div>
 
-        {/* Animated Route Progression Corridor */}
-        <div className="rounded-xl overflow-hidden">
-          <RouteDisplay
-            progress={progress}
-            startLoc={routeData.startLoc}
-            destLoc={routeData.destLoc}
-            totalDistanceKm={routeData.totalDistanceKm}
-            durationSec={routeData.durationSec}
-            waypoints={traj}
-          />
-        </div>
+
 
         {/* Grayscale Leaflet Map Card in Drawer */}
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-[#101C2D]">
