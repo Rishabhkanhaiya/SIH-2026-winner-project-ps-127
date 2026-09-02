@@ -212,95 +212,7 @@ function getInterpolatedPosition(waypoints, progress) {
   return [lat, lng]
 }
 
-// RouteDisplay Component (Emergency Corridor UX)
-export function RouteDisplay({ progress, startLoc, destLoc, totalDistanceKm = 12.5, durationSec = 300, waypoints = [] }) {
-  const nodesCleared = progress > 90 ? 4 : progress > 65 ? 3 : progress > 25 ? 2 : progress > 0 ? 1 : 0
 
-  const defaultLabels = ['Dispatch', 'Node 2', 'Node 3', 'Target']
-  const nodes = [0, 1, 2, 3].map(i => {
-    let label = defaultLabels[i]
-    if (waypoints && waypoints.length >= 4) {
-      const idx = i === 0 ? 0 : i === 1 ? Math.floor((waypoints.length - 1) * 0.33) : i === 2 ? Math.floor((waypoints.length - 1) * 0.67) : waypoints.length - 1
-      const wp = waypoints[idx]
-      if (wp) {
-        label = wp.label || wp.location || wp.camera || label
-      }
-    } else if (waypoints && waypoints[i]) {
-      label = waypoints[i].label || waypoints[i].location || waypoints[i].camera || label
-    }
-    return {
-      label,
-      cleared: nodesCleared >= i + 1,
-    }
-  })
-
-  const remainingSec = Math.max(0, Math.round(durationSec * (1 - progress / 100)))
-  const remainingMin = Math.floor(remainingSec / 60)
-  const remainingSecMod = remainingSec % 60
-  const remainingKm = (totalDistanceKm * (1 - progress / 100)).toFixed(1)
-
-  return (
-    <div className="flex flex-col gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-800">
-      {/* Origin -> Destination Header */}
-      <div className="flex items-center gap-2 text-[11px]">
-        <div className="flex items-center gap-1.5 min-w-0 max-w-[46%]">
-          <MapPin size={13} className="text-[#10B981] shrink-0" />
-          <span className="truncate font-bold text-slate-800 dark:text-slate-200" title={startLoc}>{startLoc}</span>
-        </div>
-        <div className="flex-1 border-t border-dashed border-slate-300 dark:border-slate-700 mx-1" />
-        <div className="flex items-center gap-1.5 min-w-0 max-w-[46%] justify-end">
-          <span className="truncate font-bold text-slate-800 dark:text-slate-200 text-right" title={destLoc}>{destLoc}</span>
-          <Flag size={13} className="text-[#EF4444] shrink-0" />
-        </div>
-      </div>
-
-      {/* Corridor Progress Bar + Percentage Chip & ETA */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Corridor Progress</span>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30">
-              {Math.floor(progress)}% CLEARED
-            </span>
-          </div>
-          <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 font-mono">
-            ETA: {remainingMin}m {remainingSecMod.toString().padStart(2, '0')}s · {remainingKm} km left
-          </div>
-        </div>
-        <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-500 ease-linear"
-            style={{ width: `${progress}%`, background: progress >= 100 ? '#10B981' : '#2563EB' }}
-          />
-        </div>
-      </div>
-
-      {/* 4 Checkpoint Nodes Segmented Bar */}
-      <div className="flex items-center gap-1.5">
-        {nodes.map((node, i) => (
-          <div key={i} className="flex items-center gap-1.5 flex-1">
-            <div className={`flex-1 h-1.5 rounded-full transition-colors duration-500 ${node.cleared ? 'bg-[#10B981]' : 'bg-slate-200 dark:bg-slate-700'}`} />
-            <div
-              className={`w-2.5 h-2.5 rounded-full shrink-0 transition-colors duration-500 border-2 ${
-                node.cleared ? 'bg-[#10B981] border-green-200 dark:border-green-800' : 'bg-slate-300 dark:bg-slate-600 border-transparent'
-              }`}
-              title={node.label}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Checkpoint Node Labels */}
-      <div className="flex justify-between text-[9px] text-slate-500 dark:text-slate-400 font-mono -mt-1">
-        {nodes.map((n, i) => (
-          <span key={i} className={`truncate max-w-[24%] ${n.cleared ? 'text-[#10B981] font-bold' : ''}`} title={n.label}>
-            {n.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 function MapFitBounds({ points }) {
   const map = useMap()
@@ -447,20 +359,6 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
           <X className="w-4 h-4" />
         </button>
       </div>
-
-      {/* Route Progression Corridor (for single vehicle view) */}
-      {singleVehicle && routeData && (
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101C2D]">
-          <RouteDisplay
-            progress={progress}
-            startLoc={routeData.startLoc}
-            destLoc={routeData.destLoc}
-            totalDistanceKm={routeData.totalDistanceKm}
-            durationSec={routeData.durationSec}
-            waypoints={routeData.waypoints}
-          />
-        </div>
-      )}
 
       {/* Color Legend for All Vehicles */}
       {!singleVehicle && (
