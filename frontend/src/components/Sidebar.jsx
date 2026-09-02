@@ -1,43 +1,38 @@
 import React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Camera, TrendingUp, Search,
   Users, AlertTriangle, FileText, Activity,
-  Settings, Zap, LogOut, User, ChevronRight
+  Zap, LogOut, User, ChevronRight, Radio
 } from 'lucide-react'
 
 export const NAV_ITEMS = [
-  { path: '/', label: 'Overview', icon: LayoutDashboard },
-  { path: '/map', label: 'Live Map', icon: Map },
-  { path: '/cameras', label: 'Cameras', icon: Camera },
-  { path: '/traffic', label: 'Traffic Analytics', icon: TrendingUp },
-  { path: '/vehicles', label: 'Vehicle Search', icon: Search },
-  { path: '/persons', label: 'Person Tracking', icon: Users },
-  { path: '/incidents', label: 'Incident Flagging', icon: AlertTriangle },
-  { path: '/reports', label: 'Reports', icon: FileText },
-  { path: '/system', label: 'System Health', icon: Activity },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/',          label: 'Overview',          icon: LayoutDashboard },
+  { path: '/map',       label: 'Live Map',           icon: Map             },
+  { path: '/cameras',   label: 'Cameras',            icon: Camera          },
+  { path: '/traffic',   label: 'Traffic Analytics',  icon: TrendingUp      },
+  { path: '/vehicles',  label: 'Vehicle Search',     icon: Search          },
+  { path: '/persons',   label: 'Person Tracking',    icon: Users           },
+  { path: '/incidents', label: 'Incident Flagging',  icon: AlertTriangle   },
+  { path: '/system',    label: 'System Health',      icon: Activity        },
 ]
 
 export default function Sidebar({ onLogout }) {
-  const location = useLocation()
+  const location  = useLocation()
+  const navigate  = useNavigate()
 
   let currentUser = { username: 'Admin Officer', role: 'Command Officer' }
   try {
     const raw = localStorage.getItem('urbanpulse_user')
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (parsed && parsed.username) {
-        currentUser = parsed
-      }
+      if (parsed && parsed.username) currentUser = parsed
     }
-  } catch {
-    // fallback default
-  }
+  } catch { /* fallback */ }
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40 bg-white dark:bg-[#08111F] border-r border-slate-200 dark:border-slate-800 transition-colors">
-      
+
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-3 border-b border-slate-200 dark:border-slate-800">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-600 shadow-sm text-white flex-shrink-0">
@@ -45,7 +40,7 @@ export default function Sidebar({ onLogout }) {
         </div>
         <div>
           <div className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Urban Pulse</div>
-          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">AI Intelligence</div>
+          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">Surveillance Platform</div>
         </div>
       </div>
 
@@ -73,12 +68,28 @@ export default function Sidebar({ onLogout }) {
 
       {/* Bottom section */}
       <div className="px-3 pb-4 space-y-1 border-t border-slate-200 dark:border-slate-800 pt-3">
-        {/* AI Status */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
-          <div className="relative flex-shrink-0">
-            <div className="w-2 h-2 rounded-full bg-green-500 live-dot" />
+
+        {/* System Status + Reports icon row */}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
+            <div className="relative flex-shrink-0">
+              <div className="w-2 h-2 rounded-full bg-green-500 live-dot" />
+            </div>
+            <span className="text-xs font-semibold text-green-700 dark:text-green-400">System Online</span>
           </div>
-          <span className="text-xs font-semibold text-green-700 dark:text-green-400">AI System Online</span>
+          {/* Reports quick-access icon */}
+          <button
+            type="button"
+            title="Reports"
+            onClick={() => navigate('/reports')}
+            className={`p-2 rounded-lg border transition-all ${
+              location.pathname.startsWith('/reports')
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-white/10'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+          </button>
         </div>
 
         {/* User Profile */}

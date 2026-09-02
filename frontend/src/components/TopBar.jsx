@@ -1,28 +1,28 @@
 import React, { useState } from 'react'
-import { Search, Bell, ChevronDown, Wifi, LogOut, User } from 'lucide-react'
+import { Search, Bell, ChevronDown, Wifi, LogOut, Settings } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 
 export default function TopBar({ onLogout }) {
   const [showDropdown, setShowDropdown] = useState(false)
+  const navigate  = useNavigate()
+  const location  = useLocation()
 
   let currentUser = { username: 'admin', role: 'Command Officer' }
   try {
     const raw = localStorage.getItem('urbanpulse_user')
     if (raw) {
       const parsed = JSON.parse(raw)
-      if (parsed && parsed.username) {
-        currentUser = parsed
-      }
+      if (parsed && parsed.username) currentUser = parsed
     }
-  } catch {
-    // fallback default
-  }
+  } catch { /* fallback */ }
 
   const initials = currentUser.username.slice(0, 2).toUpperCase()
+  const settingsActive = location.pathname.startsWith('/settings')
 
   return (
     <header className="fixed top-0 left-60 right-0 h-14 flex items-center px-6 gap-4 z-30 bg-white/95 dark:bg-[#101C2D]/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white transition-colors">
-      
+
       {/* City / Zone */}
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-slate-700 dark:text-slate-300 bg-slate-100/70 dark:bg-white/5 border border-slate-200 dark:border-slate-800 transition-all">
         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -60,6 +60,20 @@ export default function TopBar({ onLogout }) {
         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 critical-pulse" />
       </button>
 
+      {/* Settings icon — top-right */}
+      <button
+        type="button"
+        title="Settings"
+        onClick={() => navigate('/settings')}
+        className={`p-2 rounded-lg transition-all ${
+          settingsActive
+            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
+            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
+        }`}
+      >
+        <Settings className="w-4 h-4" />
+      </button>
+
       {/* User Avatar & Dropdown */}
       <div className="relative">
         <button
@@ -81,10 +95,7 @@ export default function TopBar({ onLogout }) {
             </div>
             {onLogout && (
               <button
-                onClick={() => {
-                  setShowDropdown(false)
-                  onLogout()
-                }}
+                onClick={() => { setShowDropdown(false); onLogout() }}
                 type="button"
                 className="w-full flex items-center gap-2 px-4 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors text-left"
               >
