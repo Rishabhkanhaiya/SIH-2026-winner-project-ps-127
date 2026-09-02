@@ -54,7 +54,7 @@ Urban Pulse AI is a distributed smart-city intelligence platform composed of thr
 | M1 | Backend Implementation & Database Seeding | Service B (`urbanpulse.db`, SQLAlchemy models, seed data, JWT auth, 11 API routers) | None | DONE |
 | M2 | System Integration & Orchestration Script | Service A (8001), Service B (8000), Frontend (5173), and `start_all.ps1` execution script | M1 | DONE |
 | M3 | End-to-End Verification & Gate Audit | Comprehensive E2E testing, API verification, proxy verification, Challenger validation, Forensic Audit | M2 | DONE |
-| M4 | Version Control & Remote Push | Git staging, commit creation, clean status check, push to `origin/master` | M3 | IN_PROGRESS |
+| M4 | Version Control & Remote Push | Git staging, commit creation, clean status check, push to `origin/master` | M3 | DONE |
 
 ## Interface Contracts
 

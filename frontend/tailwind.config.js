@@ -1,9 +1,25 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
       colors: {
+        brand: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+        },
+        surface: {
+          light: '#ffffff',
+          'light-subtle': '#f8fafc',
+          dark: '#101C2D',
+          darker: '#08111F',
+          elevated: '#162438',
+        },
         bg: {
           primary: '#08111F',
           card: '#101C2D',
@@ -11,23 +27,23 @@ export default {
           hover: '#1a2d44',
         },
         accent: {
-          cyan: '#22D3EE',
-          blue: '#3B82F6',
+          cyan: '#0284c7',
+          blue: '#2563eb',
         },
         status: {
-          success: '#22C55E',
-          warning: '#F59E0B',
-          critical: '#EF4444',
-          info: '#3B82F6',
+          success: '#22c55e',
+          warning: '#f59e0b',
+          critical: '#ef4444',
+          info: '#3b82f6',
         },
         text: {
-          primary: '#F8FAFC',
-          secondary: '#94A3B8',
-          muted: '#64748B',
+          primary: '#0f172a',
+          secondary: '#64748b',
+          muted: '#94a3b8',
         },
         border: {
-          subtle: 'rgba(255,255,255,0.06)',
-          DEFAULT: 'rgba(255,255,255,0.10)',
+          subtle: 'rgba(0,0,0,0.06)',
+          DEFAULT: 'rgba(0,0,0,0.10)',
         }
       },
       fontFamily: {

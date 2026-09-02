@@ -1,6 +1,6 @@
 import React from 'react'
-import StatusBadge from './StatusBadge'
-import { Camera, MapPin, Clock, AlertTriangle } from 'lucide-react'
+import { StatusBadge } from './StatusBadge'
+import { Camera, MapPin, Clock } from 'lucide-react'
 
 export default function AlertItem({ alert, onAcknowledge, onInvestigate }) {
   const timeAgo = (date) => {
@@ -12,38 +12,34 @@ export default function AlertItem({ alert, onAcknowledge, onInvestigate }) {
 
   return (
     <div
-      className="flex items-start gap-3 p-3 rounded-xl border border-white/5 transition-all duration-150 cursor-pointer"
-      style={{ backgroundColor: '#101C2D' }}
-      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#162438'}
-      onMouseLeave={e => e.currentTarget.style.backgroundColor = '#101C2D'}
+      className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101C2D] hover:bg-slate-50 dark:hover:bg-[#162438] transition-all duration-150 cursor-pointer shadow-sm"
     >
       {/* Severity dot */}
       <div className="flex-shrink-0 mt-1">
-        <div className="w-2 h-2 rounded-full" style={{
-          backgroundColor:
-            alert.severity === 'critical' || alert.severity === 'HIGH' ? '#EF4444' :
-            alert.severity === 'warning' || alert.severity === 'MEDIUM' ? '#F59E0B' :
-            '#3B82F6'
-        }} />
+        <div className={`w-2 h-2 rounded-full ${
+          alert.severity === 'critical' || alert.severity === 'HIGH' ? 'bg-red-500 live-dot' :
+          alert.severity === 'warning' || alert.severity === 'MEDIUM' ? 'bg-amber-500' :
+          'bg-blue-500'
+        }`} />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-medium leading-snug" style={{ color: '#F8FAFC' }}>
+          <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-[#F8FAFC]">
             {alert.event}
           </p>
           <StatusBadge status={alert.severity} />
         </div>
         <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#94A3B8' }}>
-            <Camera size={11} /> {alert.camera}
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <Camera size={12} /> {alert.camera}
           </span>
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#94A3B8' }}>
-            <MapPin size={11} /> {alert.location}
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <MapPin size={12} /> {alert.location}
           </span>
-          <span className="flex items-center gap-1 text-xs" style={{ color: '#94A3B8' }}>
-            <Clock size={11} /> {timeAgo(alert.time)}
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <Clock size={12} /> {timeAgo(alert.time)}
           </span>
         </div>
 
@@ -53,8 +49,7 @@ export default function AlertItem({ alert, onAcknowledge, onInvestigate }) {
             {alert.status === 'new' && onAcknowledge && (
               <button
                 onClick={(e) => { e.stopPropagation(); onAcknowledge(alert.id) }}
-                className="px-2 py-1 rounded text-xs font-medium transition-all duration-150"
-                style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 hover:bg-amber-100 transition-all duration-150"
               >
                 Acknowledge
               </button>
@@ -62,8 +57,7 @@ export default function AlertItem({ alert, onAcknowledge, onInvestigate }) {
             {onInvestigate && (
               <button
                 onClick={(e) => { e.stopPropagation(); onInvestigate(alert.id) }}
-                className="px-2 py-1 rounded text-xs font-medium transition-all duration-150"
-                style={{ backgroundColor: 'rgba(34,211,238,0.12)', color: '#22D3EE' }}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 transition-all duration-150"
               >
                 Investigate
               </button>

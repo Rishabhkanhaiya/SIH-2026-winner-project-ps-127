@@ -32,3 +32,46 @@ Commit all created and modified files to the local Git repository and push them 
 - [ ] `git status` shows a clean working tree.
 - [ ] `git log -n 1` shows the latest commit with the complete Urban Pulse AI work.
 - [ ] `git push origin master` completes successfully.
+
+## 2026-09-02T09:21:07Z
+
+Update the existing **Urban Pulse AI** frontend to refine the UI/UX. The updates include implementing a light/dark mode toggle (defaulting to light), removing gradients, reorganizing pages, adding a basic login page, and enhancing the vehicle search with Leaflet map trajectories.
+
+Working directory: c:\Users\Rishabh_Joshi\Downloads\sih\frontend
+Integrity mode: development
+
+## Requirements
+
+### R1. UI/Theme Overhaul
+- Remove all color gradients across the entire application.
+- Implement a working Light/Dark mode toggle button, with Light mode as the default theme.
+- Standardize the color palette so that every color (apart from accent and background colors) carries semantic meaning (e.g., Red for flags/critical incidents, Green for healthy statuses).
+
+### R2. Page Restructuring & Login
+- Add a well-structured, basic Login Page (no role-based access needed yet, just a gateway to the app).
+- Remove the ANPR page completely from the routing and sidebar.
+- Merge the "Alerts" and "Incidents" pages into a single new component/page called "Incident Flagging".
+- Merge "Analytics" and "Traffic Analytics" into a single page called "Traffic Analytics".
+
+### R3. Vehicle Search Enhancements
+- In the Vehicle Search page, integrate a map-based trajectory view using Leaflet.
+- Include a button to show the location trajectory on a map for a single selected vehicle.
+- Include a button to show the trajectories for all vehicles.
+- *Note: The user requested to use the Stitch plugin if helpful, but you are free to edit the React source code directly to achieve these changes.*
+
+## Acceptance Criteria
+
+### UI & Theme
+- [ ] Running `npm run dev` starts the frontend successfully.
+- [ ] The app boots in Light mode by default.
+- [ ] Toggling the theme switches backgrounds, text, and component colors correctly between light and dark without breaking visibility.
+- [ ] Semantic colors (Red, Green, Yellow, etc.) are used consistently for statuses.
+
+### Structure
+- [ ] The app boots to the Login page. Entering any credentials proceeds to the dashboard.
+- [ ] The sidebar navigation exactly matches the new structure (ANPR removed, merged Incident Flagging, merged Traffic Analytics).
+
+### Vehicle Trajectory
+- [ ] The Vehicle Search page successfully renders a Leaflet map.
+- [ ] Clicking to show a trajectory draws a visible path or markers on the map for the selected vehicle(s).
+

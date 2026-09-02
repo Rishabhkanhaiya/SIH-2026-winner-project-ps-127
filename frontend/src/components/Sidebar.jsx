@@ -1,43 +1,51 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  LayoutDashboard, Map, Camera, TrendingUp, Search, ScanLine,
-  Users, AlertTriangle, Bell, BarChart3, FileText, Activity,
+  LayoutDashboard, Map, Camera, TrendingUp, Search,
+  Users, AlertTriangle, FileText, Activity,
   Settings, Zap, LogOut, User, ChevronRight
 } from 'lucide-react'
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { path: '/', label: 'Overview', icon: LayoutDashboard },
   { path: '/map', label: 'Live Map', icon: Map },
   { path: '/cameras', label: 'Cameras', icon: Camera },
   { path: '/traffic', label: 'Traffic Analytics', icon: TrendingUp },
   { path: '/vehicles', label: 'Vehicle Search', icon: Search },
-  { path: '/anpr', label: 'ANPR', icon: ScanLine },
   { path: '/persons', label: 'Person Tracking', icon: Users },
-  { path: '/incidents', label: 'Incidents', icon: AlertTriangle },
-  { path: '/alerts', label: 'Alerts', icon: Bell },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/incidents', label: 'Incident Flagging', icon: AlertTriangle },
   { path: '/reports', label: 'Reports', icon: FileText },
   { path: '/system', label: 'System Health', icon: Activity },
   { path: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onLogout }) {
   const location = useLocation()
 
+  let currentUser = { username: 'Admin Officer', role: 'Command Officer' }
+  try {
+    const raw = localStorage.getItem('urbanpulse_user')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed && parsed.username) {
+        currentUser = parsed
+      }
+    }
+  } catch {
+    // fallback default
+  }
+
   return (
-    <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40"
-      style={{ background: '#08111F', borderRight: '1px solid rgba(255,255,255,0.06)' }}>
+    <aside className="fixed left-0 top-0 h-screen w-60 flex flex-col z-40 bg-white dark:bg-[#08111F] border-r border-slate-200 dark:border-slate-800 transition-colors">
       
       {/* Logo */}
-      <div className="px-5 py-5 flex items-center gap-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #22D3EE, #3B82F6)' }}>
+      <div className="px-5 py-5 flex items-center gap-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-600 shadow-sm text-white flex-shrink-0">
           <Zap className="w-4 h-4 text-white" fill="white" />
         </div>
         <div>
-          <div className="text-sm font-bold text-white leading-tight">Urban Pulse</div>
-          <div className="text-xs font-medium" style={{ color: '#22D3EE' }}>AI Intelligence</div>
+          <div className="text-sm font-bold text-slate-900 dark:text-white leading-tight">Urban Pulse</div>
+          <div className="text-xs font-semibold text-blue-600 dark:text-blue-400">AI Intelligence</div>
         </div>
       </div>
 
@@ -46,12 +54,15 @@ export default function Sidebar() {
         {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
           const isActive = path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
           return (
-            <NavLink key={path} to={path}
+            <NavLink
+              key={path}
+              to={path}
               className={`nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 isActive
-                  ? 'text-cyan-400 bg-cyan-400/10 border-l-2 border-cyan-400'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
-              }`}>
+                  ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 border-l-2 border-blue-600 dark:border-blue-400 font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5'
+              }`}
+            >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1">{label}</span>
               {isActive && <ChevronRight className="w-3 h-3 opacity-60" />}
@@ -61,29 +72,36 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="px-3 pb-4 space-y-1 border-t pt-3" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div className="px-3 pb-4 space-y-1 border-t border-slate-200 dark:border-slate-800 pt-3">
         {/* AI Status */}
-        <div className="flex items-center gap-3 px-3 py-2 rounded-lg"
-          style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.15)' }}>
+        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20">
           <div className="relative flex-shrink-0">
-            <div className="w-2 h-2 rounded-full bg-green-400 live-dot" />
+            <div className="w-2 h-2 rounded-full bg-green-500 live-dot" />
           </div>
-          <span className="text-xs font-medium text-green-400">AI System Online</span>
+          <span className="text-xs font-semibold text-green-700 dark:text-green-400">AI System Online</span>
         </div>
 
         {/* User Profile */}
-        <button className="w-full nav-item flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:bg-white/5">
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center flex-shrink-0">
-            <User className="w-3 h-3 text-white" />
+        <div className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-700 dark:text-slate-400 bg-slate-50 dark:bg-white/5 border border-slate-200/60 dark:border-slate-800">
+          <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0 text-white shadow-sm">
+            <User className="w-3.5 h-3.5 text-white" />
           </div>
-          <div className="flex-1 text-left">
-            <div className="text-xs font-medium text-slate-300">Admin User</div>
-            <div className="text-xs text-slate-500">Administrator</div>
+          <div className="flex-1 text-left min-w-0">
+            <div className="text-xs font-semibold text-slate-900 dark:text-slate-300 truncate capitalize">
+              {currentUser.username}
+            </div>
+            <div className="text-[11px] text-slate-500 truncate">
+              {currentUser.role || 'Command Officer'}
+            </div>
           </div>
-        </button>
+        </div>
 
         {/* Logout */}
-        <button className="w-full nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-400 hover:bg-red-400/5">
+        <button
+          onClick={onLogout}
+          type="button"
+          className="w-full nav-item flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+        >
           <LogOut className="w-4 h-4" />
           <span>Logout</span>
         </button>
