@@ -5,6 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { VEHICLES, VEHICLE_TRAJECTORY, CAMERAS } from '../data/mockData'
 import { ConfidenceBadge } from '../components/StatusBadge'
+import { useOsrmRoute } from '../hooks/useOsrmRoute'
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl
@@ -366,6 +367,19 @@ function createLiveVehicleIcon(color = '#2563EB') {
   })
 }
 
+
+// RoadPolyline — fetches real road geometry from OSRM and renders it
+function RoadPolyline({ waypoints, color }) {
+  const { roadPath } = useOsrmRoute(waypoints)
+  if (!roadPath || roadPath.length < 2) return null
+  return (
+    <Polyline
+      positions={roadPath}
+      pathOptions={{ color, weight: 4, opacity: 0.88 }}
+    />
+  )
+}
+
 // Styled Card-Boxed Grayscale Trajectory Map Component
 function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
   const plate = singleVehicle?.plate
@@ -481,17 +495,11 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
 
             return (
               <React.Fragment key={vehicle.plate}>
-                {/* Route Polyline */}
-                {sightings.length > 1 && (
-                  <Polyline
-                    positions={sightings.map(s => [s.lat, s.lng])}
-                    pathOptions={{
-                      color: singleVehicle ? '#2563EB' : color,
-                      weight: 4,
-                      opacity: 0.85,
-                    }}
-                  />
-                )}
+                {/* Road-following Polyline (fetched from OSRM) */}
+                <RoadPolyline
+                  waypoints={sightings}
+                  color={singleVehicle ? '#2563EB' : color}
+                />
 
                 {/* Waypoint Checkpoint Markers */}
                 {sightings.map((s, i) => {
@@ -529,26 +537,6 @@ function TrajectoryMapCard({ vehicles, singleVehicle, onClose }) {
                     </Marker>
                   )
                 })}
-
-                {/* Live Interpolated Moving Vehicle Marker */}
-                {sightings.length > 1 && (() => {
-                  const vPos = getInterpolatedPosition(sightings, vProg)
-                  if (!vPos) return null
-                  return (
-                    <Marker
-                      position={vPos}
-                      icon={createLiveVehicleIcon(singleVehicle ? '#2563EB' : color)}
-                      zIndexOffset={1000}
-                    >
-                      <Popup>
-                        <div className="p-1 text-xs">
-                          <div className="font-bold text-blue-600 font-mono">{vehicle.plate} (Live Sim)</div>
-                          <div className="text-slate-600">Corridor Progress: {Math.floor(vProg)}%</div>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  )
-                })()}
               </React.Fragment>
             )
           })}
@@ -677,12 +665,7 @@ function VehicleDetail({ vehicle, onClose }) {
             <MapContainer center={[18.52, 73.86]} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               {traj.length > 0 && <MapFitBounds points={traj} />}
-              {traj.length > 1 && (
-                <Polyline
-                  positions={traj.map(s => [s.lat, s.lng])}
-                  pathOptions={{ color: '#3B82F6', weight: 3.5, opacity: 0.85 }}
-                />
-              )}
+              <RoadPolyline waypoints={traj} color="#3B82F6" />
               {traj.map((s, i) => {
                 const isOrigin = i === 0
                 const isDest = i === traj.length - 1
@@ -695,11 +678,7 @@ function VehicleDetail({ vehicle, onClose }) {
                 else icon = createWaypointIcon('#3B82F6', i + 1, isCleared)
 
                 return (
-                  <Marker
-                    key={i}
-                    position={[s.lat, s.lng]}
-                    icon={icon}
-                  >
+                  <Marker key={i} position={[s.lat, s.lng]} icon={icon}>
                     <Popup>
                       <div className="text-xs font-semibold">{s.camera}</div>
                       <div className="text-xs text-slate-500">{s.location || s.label}</div>
@@ -708,13 +687,6 @@ function VehicleDetail({ vehicle, onClose }) {
                   </Marker>
                 )
               })}
-              {livePosition && (
-                <Marker
-                  position={livePosition}
-                  icon={createLiveVehicleIcon('#2563EB')}
-                  zIndexOffset={1000}
-                />
-              )}
             </MapContainer>
           </div>
         </div>

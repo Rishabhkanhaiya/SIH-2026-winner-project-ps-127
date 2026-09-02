@@ -89,7 +89,10 @@ export default function LiveMap() {
   }
 
   return (
-    <div className="relative" style={{ height: 'calc(100vh - 56px - 48px)', marginTop: '-24px', marginLeft: '-24px', marginRight: '-24px' }}>
+    <div
+      className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
+      style={{ height: 'calc(100vh - 56px - 48px)' }}
+    >
       {/* Full-screen map */}
       <div className="absolute inset-0">
         <CityMap
@@ -100,7 +103,7 @@ export default function LiveMap() {
         />
       </div>
 
-      {/* Layer Filter Panel */}
+      {/* Layer Filter Panel — top-left */}
       <div className="absolute top-4 left-4 z-40 flex flex-col gap-2">
         <div className="rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-white/90 dark:bg-[#101C2D]/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
           Map Layers
@@ -131,16 +134,16 @@ export default function LiveMap() {
         </div>
       </div>
 
-      {/* Stats overlay */}
-      <div className="absolute top-4 right-4 z-40 flex flex-col gap-2" style={{ width: selectedCamera ? '0' : 'auto', overflow: 'hidden' }}>
-        {!selectedCamera && (
+      {/* Stats overlay — top-right (hidden when camera panel open) */}
+      {!selectedCamera && (
+        <div className="absolute top-4 right-4 z-40">
           <div className="rounded-xl p-4 space-y-3 min-w-48 bg-white/90 dark:bg-[#101C2D]/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
             <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Zone Overview</div>
             {[
               { label: 'Cameras Active', value: '17/20', color: 'text-green-600 dark:text-green-400' },
-              { label: 'Vehicles Now', value: '1,240', color: 'text-slate-900 dark:text-white' },
-              { label: 'Active Incidents', value: '8', color: 'text-red-600 dark:text-red-400' },
-              { label: 'Traffic Flow', value: '74%', color: 'text-green-600 dark:text-green-400' },
+              { label: 'Vehicles Now',   value: '1,240', color: 'text-slate-900 dark:text-white' },
+              { label: 'Active Incidents', value: '8',  color: 'text-red-600 dark:text-red-400' },
+              { label: 'Traffic Flow',   value: '74%',  color: 'text-green-600 dark:text-green-400' },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs text-slate-500">{label}</span>
@@ -148,10 +151,10 @@ export default function LiveMap() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Camera detail panel */}
+      {/* Camera detail panel — right side drawer */}
       {selectedCamera && (
         <div className="absolute top-0 right-0 bottom-0 w-80 z-40">
           <CameraPanel camera={selectedCamera} onClose={() => setSelectedCamera(null)} />
