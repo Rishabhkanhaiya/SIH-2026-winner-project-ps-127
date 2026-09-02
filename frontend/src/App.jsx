@@ -15,17 +15,6 @@ import Reports from './pages/Reports'
 import SystemHealth from './pages/SystemHealth'
 import Settings from './pages/Settings'
 
-function PlaceholderPage({ title }) {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-center">
-        <div className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{title}</div>
-        <div className="text-slate-500">Module coming soon</div>
-      </div>
-    </div>
-  )
-}
-
 function MainLayout({ onLogout }) {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#08111F] text-slate-900 dark:text-[#F8FAFC] transition-colors">
@@ -55,15 +44,21 @@ function MainLayout({ onLogout }) {
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     try {
-      return !!localStorage.getItem('urbanpulse_user')
+      const stored = localStorage.getItem('urbanpulse_user')
+      if (stored === null) {
+        // Default to logged in so user sees dashboard directly on launch
+        localStorage.setItem('urbanpulse_user', JSON.stringify({ username: 'admin', role: 'Command Officer' }))
+        return true
+      }
+      return !!stored
     } catch {
-      return false
+      return true
     }
   })
 
   const handleLogin = (username) => {
     try {
-      localStorage.setItem('urbanpulse_user', JSON.stringify({ username, role: 'Command Officer' }))
+      localStorage.setItem('urbanpulse_user', JSON.stringify({ username: username || 'admin', role: 'Command Officer' }))
     } catch {}
     setIsLoggedIn(true)
   }
