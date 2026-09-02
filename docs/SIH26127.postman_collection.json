@@ -1,0 +1,95 @@
+{
+  "info": {
+    "name": "SIH26127 — Urban Pulse AI API Collection",
+    "description": "Complete API collection for Urban Pulse AI. Service B (port 8000) all endpoints.",
+    "_postman_id": "sih26127-urbanpulse-v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8000"},
+    {"key": "service_a_url", "value": "http://localhost:8001"},
+    {"key": "token", "value": ""},
+    {"key": "api_key", "value": "urbanpulse-internal-api-key-2026"}
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (admin)",
+          "event": [{"listen": "test", "script": {"exec": ["const r = pm.response.json();", "pm.collectionVariables.set('token', r.token);", "pm.test('Status 200', () => pm.response.to.have.status(200));", "pm.test('Has token', () => pm.expect(r.token).to.be.a('string'));"]}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"username\": \"admin\", \"password\": \"admin123\"}"}, "url": {"raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"]}}
+        },
+        {
+          "name": "Get Current User",
+          "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/auth/me"}}
+        }
+      ]
+    },
+    {
+      "name": "Cameras",
+      "item": [
+        {"name": "List All Cameras", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/cameras"}}},
+        {"name": "Get Camera Detail", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/cameras/CAM-001"}}},
+        {"name": "Create Camera (admin)", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"camera_id\": \"CAM-TEST\", \"name\": \"Test Camera\", \"lat\": 18.52, \"lng\": 73.86, \"zone\": \"Zone A\"}"}, "url": {"raw": "{{base_url}}/api/v1/cameras"}}}
+      ]
+    },
+    {
+      "name": "Vehicles & ANPR",
+      "item": [
+        {"name": "Ingest Plate Reading (M1→M4)", "request": {"method": "POST", "header": [{"key": "X-API-Key", "value": "{{api_key}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"plate_number\": \"MH12AB1234\", \"confidence\": 0.94, \"confidence_band\": \"HIGH\", \"camera_id\": \"CAM-001\", \"track_id\": \"trk_abc123\", \"vote_count\": 4, \"timestamp\": \"2026-09-02T10:00:00Z\"}"}, "url": {"raw": "{{base_url}}/api/v1/ingest"}}},
+        {"name": "Search Plates (autocomplete)", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/plates/search?query=MH12"}}},
+        {"name": "Vehicle Trajectory", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/trajectory/MH12AB1234"}}},
+        {"name": "List Vehicles", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/vehicles"}}},
+        {"name": "ANPR Table", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/anpr?limit=20&offset=0"}}}
+      ]
+    },
+    {
+      "name": "Incidents",
+      "item": [
+        {"name": "List Incidents", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/incidents?status=active"}}},
+        {"name": "Create Incident", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"incident_type\": \"Wrong-way Vehicle\", \"priority\": \"HIGH\", \"camera_id\": \"CAM-001\", \"location\": \"MG Road\", \"lat\": 18.5196, \"lng\": 73.8553, \"description\": \"Vehicle detected going wrong way\"}"}, "url": {"raw": "{{base_url}}/api/v1/incidents"}}},
+        {"name": "Update Incident Status", "request": {"method": "PUT", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"status\": \"resolved\"}"}, "url": {"raw": "{{base_url}}/api/v1/incidents/1"}}}
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {"name": "List Alerts (paginated)", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/alerts?limit=20&offset=0"}}},
+        {"name": "Acknowledge Alert", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/alerts/1/acknowledge"}}}
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {"name": "Heatmap Data", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/analytics/heatmap"}}},
+        {"name": "Summary KPIs", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/analytics/summary"}}},
+        {"name": "24h Traffic Data", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/analytics/traffic"}}},
+        {"name": "Vehicle Types Breakdown", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/analytics/vehicle-types"}}},
+        {"name": "Camera Activity Ranking", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/analytics/camera-activity"}}}
+      ]
+    },
+    {
+      "name": "Blacklist",
+      "item": [
+        {"name": "List Blacklist", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/blacklist"}}},
+        {"name": "Add to Blacklist (admin)", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"plate_number\": \"MH12ZZ9999\", \"reason\": \"Stolen vehicle\"}"}, "url": {"raw": "{{base_url}}/api/v1/blacklist"}}}
+      ]
+    },
+    {
+      "name": "System Health",
+      "item": [
+        {"name": "Overall Health", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/system/health"}}},
+        {"name": "Camera Status", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/system/cameras/status"}}},
+        {"name": "System Metrics", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": {"raw": "{{base_url}}/api/v1/system/metrics"}}}
+      ]
+    },
+    {
+      "name": "Service A (M1)",
+      "item": [
+        {"name": "Health Check", "request": {"method": "GET", "url": {"raw": "{{service_a_url}}/health"}}},
+        {"name": "Read Plate (POST image)", "request": {"method": "POST", "body": {"mode": "formdata", "formdata": [{"key": "image", "type": "file", "src": ""}, {"key": "camera_id", "value": "CAM-001", "type": "text"}]}, "url": {"raw": "{{service_a_url}}/api/v1/read-plate"}}}
+      ]
+    }
+  ]
+}

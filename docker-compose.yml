@@ -1,0 +1,82 @@
+version: '3.9'
+
+services:
+  # ─────────────────────────────────────────
+  # Service A — M1 Perception / AI Inference
+  # ─────────────────────────────────────────
+  service-a:
+    build:
+      context: ./service-a
+      dockerfile: Dockerfile
+    container_name: urbanpulse-service-a
+    ports:
+      - "8001:8001"
+    environment:
+      - INFERENCE_MODE=auto
+      - LOG_LEVEL=INFO
+      - MODEL_VERSION=yolov8-easyocr-indian-v1.0
+    volumes:
+      - ./service-a/models:/app/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - urbanpulse-net
+
+  # ─────────────────────────────────────────
+  # Service B — M4 Backend + Intelligence
+  # ─────────────────────────────────────────
+  service-b:
+    build:
+      context: ./service-b
+      dockerfile: Dockerfile
+    container_name: urbanpulse-service-b
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=urbanpulse-jwt-secret-change-in-production
+      - INTERNAL_API_KEY=urbanpulse-internal-api-key-2026
+      - SERVICE_A_URL=http://service-a:8001
+      - DATABASE_URL=sqlite:////data/urbanpulse.db
+      - LOG_LEVEL=INFO
+    volumes:
+      - urbanpulse-db:/data
+    depends_on:
+      service-a:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/system/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - urbanpulse-net
+
+  # ─────────────────────────────────────────
+  # Frontend — M5 React Dashboard
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: urbanpulse-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - service-b
+    restart: unless-stopped
+    networks:
+      - urbanpulse-net
+
+volumes:
+  urbanpulse-db:
+    name: urbanpulse-db
+
+networks:
+  urbanpulse-net:
+    name: urbanpulse-net
+    driver: bridge

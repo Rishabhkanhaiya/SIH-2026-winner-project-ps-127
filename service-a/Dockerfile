@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# System dependencies for OpenCV and PaddlePaddle
+# System dependencies for OpenCV and EasyOCR
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender-dev \
     libgomp1 \
     libgl1-mesa-glx \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -20,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY models/ ./models/
 
-# Default environment (override via docker run -e or docker-compose)
+# Default environment
 ENV INFERENCE_MODE=auto
 ENV LOG_LEVEL=INFO
 

@@ -27,7 +27,7 @@ from app.core.grammar import correct_plate, is_valid_plate_format
 from app.core.preprocess import preprocess_plate_crop
 from app.core.voting import make_track_id, voting_buffer
 from app.models.detector import detector
-from app.models.ocr import ocr_engine
+from app.models.ocr_pretrained import ocr_engine
 from app.models.tracker import tracker_registry
 from app.utils.image import decode_image
 

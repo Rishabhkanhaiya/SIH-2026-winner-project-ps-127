@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.api.routes import router
 from app.models.detector import detector
-from app.models.ocr import ocr_engine
+from app.models.ocr_pretrained import ocr_engine
 
 # ──────────────────────────────────────────────────────────────────
 # Logging
