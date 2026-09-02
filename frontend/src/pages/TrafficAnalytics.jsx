@@ -360,7 +360,6 @@ export default function TrafficAnalytics() {
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]/50">
                     <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Zone / Corridor</th>
                     <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Cams</th>
-                    <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Avg Speed</th>
                     <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Congestion</th>
                     <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400 text-right">State</th>
                   </tr>
@@ -374,9 +373,6 @@ export default function TrafficAnalytics() {
                       </td>
                       <td className="py-2.5 px-3 font-mono text-slate-600 dark:text-slate-400">
                         {row.cameras}
-                      </td>
-                      <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-200">
-                        {row.speed}
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white">
                         {row.congestion}
