@@ -396,6 +396,103 @@ export default function TrafficAnalytics() {
 
       </div>
 
+      {/* ── Camera-Wise Traffic Analytics ─────────────────────────────── */}
+      <div className="rounded-xl p-5 bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <div className="text-sm font-bold text-slate-900 dark:text-white">Camera-Wise Traffic Breakdown</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Vehicle &amp; pedestrian counts per surveillance node</div>
+          </div>
+          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+            Live Demo
+          </span>
+        </div>
+
+        {/* Bar chart — vehicles per camera */}
+        <div className="h-56 w-full mb-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={CAMERAS.filter(c => c.status === 'online').map(c => ({
+                name: c.id,
+                location: c.name,
+                vehicles: c.vehicles_today,
+                pedestrians: c.pedestrians_today,
+              }))}
+              margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.12)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} interval={0} angle={-30} textAnchor="end" height={36} />
+              <YAxis tick={{ fontSize: 10, fill: '#64748B' }} tickLine={false} axisLine={false} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#101C2D', borderColor: '#1E293B', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                formatter={(val, name, props) => [`${val.toLocaleString()}`, name === 'vehicles' ? `Vehicles — ${props.payload.location}` : `Pedestrians — ${props.payload.location}`]}
+              />
+              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+              <Bar dataKey="vehicles"    name="Vehicles"    fill="#2563EB" radius={[3,3,0,0]} maxBarSize={22} />
+              <Bar dataKey="pedestrians" name="Pedestrians" fill="#22C55E" radius={[3,3,0,0]} maxBarSize={22} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Camera-wise table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]/60">
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Camera ID</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Location</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400">Zone</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400 text-right">Vehicles Today</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400 text-right">Pedestrians</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400 text-right">Uptime</th>
+                <th className="py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-400 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70">
+              {CAMERAS.map(cam => {
+                const maxV = Math.max(...CAMERAS.map(c => c.vehicles_today))
+                const pct  = maxV > 0 ? Math.round((cam.vehicles_today / maxV) * 100) : 0
+                const statusColor =
+                  cam.status === 'online'      ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10' :
+                  cam.status === 'offline'     ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10' :
+                                                 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10'
+                return (
+                  <tr key={cam.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900 dark:text-slate-100">{cam.id}</td>
+                    <td className="py-2.5 px-3 text-slate-700 dark:text-slate-300 max-w-[140px] truncate">{cam.name}</td>
+                    <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{cam.zone}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-16 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 tabular-nums">{cam.vehicles_today.toLocaleString()}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-semibold text-green-600 dark:text-green-400 tabular-nums">
+                      {cam.pedestrians_today.toLocaleString()}
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <div className="w-12 h-1 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                          <div className="h-full bg-green-500 rounded-full" style={{ width: `${cam.uptime}%` }} />
+                        </div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{cam.uptime}%</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusColor}`}>
+                        {cam.status}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   )
 }

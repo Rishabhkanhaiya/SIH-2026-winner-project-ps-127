@@ -68,6 +68,13 @@ body {
   animation: livePulse 1.5s ease-in-out infinite;
 }
 
+/* Camera feed scan line */
+@keyframes scanMove {
+  0%   { top: 0%; opacity: 0.6; }
+  50%  { opacity: 0.3; }
+  100% { top: 100%; opacity: 0.6; }
+}
+
 /* Alert severity pulse */
 @keyframes criticalPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
