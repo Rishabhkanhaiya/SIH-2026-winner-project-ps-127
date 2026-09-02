@@ -1,77 +1,105 @@
 # Original User Request
 
-## 2026-09-02T08:02:43Z
+## Initial Request — 2026-09-02T11:58:14Z
 
-Finish building the **Urban Pulse AI** smart-city monitoring platform by implementing the main backend (`service-b`), integrating it with the existing React frontend and `service-a` (YOLO+EasyOCR), ensuring all systems run locally, and committing the final code to GitHub.
-
-Working directory: c:\Users\Rishabh_Joshi\Downloads\sih\
-Integrity mode: development
-
-## Requirements
-
-### R1. Backend Implementation (`service-b`)
-Create a FastAPI backend using SQLite (`urbanpulse.db`). It must include authentication (admin/officer1), database models, schemas, and API routers for all frontend pages (cameras, vehicles, anpr, incidents, alerts, analytics, system health). The backend must seed initial mock data on the first run.
-
-### R2. System Integration & Execution
-Ensure `service-a` (port 8001), `service-b` (port 8000), and the React frontend (port 5173) can all start up successfully and communicate with each other. Provide a single PowerShell script `start_all.ps1` to run them concurrently.
-
-### R3. Version Control
-Commit all created and modified files to the local Git repository and push them to the user's remote GitHub repository (`https://github.com/Rishabhkanhaiya/M1-Of-the-sih.git`) on the `master` branch.
-
-## Acceptance Criteria
-
-### Backend Verification
-- [ ] A programmatic script (e.g., Python `requests` or PowerShell `Invoke-RestMethod`) can successfully query `http://localhost:8000/docs` and at least one data endpoint (e.g., `/api/v1/cameras`) and receive a 200 OK response.
-- [ ] The `urbanpulse.db` file exists and contains tables populated with seed data.
-
-### Integration Verification
-- [ ] Running `start_all.ps1` successfully spins up processes on ports 5173, 8000, and 8001 without immediately crashing.
-- [ ] The frontend at `http://localhost:5173` loads without API proxy errors (verified by fetching the root HTML programmatically).
-
-### Version Control Verification
-- [ ] `git status` shows a clean working tree.
-- [ ] `git log -n 1` shows the latest commit with the complete Urban Pulse AI work.
-- [ ] `git push origin master` completes successfully.
-
-## 2026-09-02T09:21:07Z
-
-Update the existing **Urban Pulse AI** frontend to refine the UI/UX. The updates include implementing a light/dark mode toggle (defaulting to light), removing gradients, reorganizing pages, adding a basic login page, and enhancing the vehicle search with Leaflet map trajectories.
+Enhance the Vehicle Search page in the Urban Pulse AI frontend with realistic animated route trajectories inspired by the Emergency Corridor system, grayscale Leaflet maps, and a card-boxed map layout.
 
 Working directory: c:\Users\Rishabh_Joshi\Downloads\sih\frontend
 Integrity mode: development
 
+## Reference Material
+The user provided an Emergency Ops page (Emergency.jsx) and RouteDisplay.jsx as inspiration. Key patterns to adopt:
+- **Per-vehicle path animation**: Animated progress bar (0→100%) over the route duration
+- **Node progression**: Discrete junction/checkpoint nodes that light up as the vehicle passes them (cleared vs. pending state)
+- **Compact route header**: Origin → Destination row with icons + dashed connector line
+- **Progress percentage chip** displayed alongside the route
+
+Here is the reference RouteDisplay component the user wants you to draw inspiration from:
+
+```jsx
+import { Navigation, MapPin, Flag } from 'lucide-react';
+
+export default function RouteDisplay({ progress, startLoc, destLoc }) {
+  const nodesCleared = progress > 90 ? 4 : progress > 65 ? 3 : progress > 25 ? 2 : progress > 0 ? 1 : 0;
+  const nodes = [
+    { label: 'Dispatch', cleared: nodesCleared >= 1 },
+    { label: 'Node 2',   cleared: nodesCleared >= 2 },
+    { label: 'Node 3',   cleared: nodesCleared >= 3 },
+    { label: 'Target',   cleared: nodesCleared >= 4 },
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2 text-[11px]">
+        <div className="flex items-center gap-1 min-w-0">
+          <MapPin size={11} className="text-[#10B981] shrink-0" />
+          <span className="truncate font-semibold text-[#1E293B]" title={startLoc}>{startLoc}</span>
+        </div>
+        <div className="flex-1 border-t border-dashed border-[#CBD5E1] mx-1" />
+        <div className="flex items-center gap-1 min-w-0">
+          <Flag size={11} className="text-[#EF4444] shrink-0" />
+          <span className="truncate font-semibold text-[#1E293B]" title={destLoc}>{destLoc}</span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wide">Corridor Progress</span>
+          <span className="text-[12px] font-bold text-[#2563EB] font-mono">{Math.floor(progress)}%</span>
+        </div>
+        <div className="h-2 w-full bg-[#E2E8F0] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-[1000ms] ease-linear"
+            style={{ width: `${progress}%`, background: progress === 100 ? '#10B981' : '#2563EB' }}
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {nodes.map((node, i) => (
+          <div key={i} className="flex items-center gap-1.5 flex-1">
+            <div className={`flex-1 h-1.5 rounded-full transition-colors duration-500 ${node.cleared ? 'bg-[#10B981]' : 'bg-[#E2E8F0]'}`} />
+            <div className={`w-2 h-2 rounded-full shrink-0 transition-colors duration-500 ${node.cleared ? 'bg-[#10B981]' : 'bg-[#CBD5E1]'}`} title={node.label} />
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between text-[9px] text-[#94A3B8] font-mono -mt-1">
+        {nodes.map((n, i) => <span key={i} className={n.cleared ? 'text-[#10B981] font-bold' : ''}>{n.label}</span>)}
+      </div>
+    </div>
+  );
+}
+```
+
 ## Requirements
 
-### R1. UI/Theme Overhaul
-- Remove all color gradients across the entire application.
-- Implement a working Light/Dark mode toggle button, with Light mode as the default theme.
-- Standardize the color palette so that every color (apart from accent and background colors) carries semantic meaning (e.g., Red for flags/critical incidents, Green for healthy statuses).
+### R1. Realistic Animated Trajectories in Vehicle Search
+The vehicle trajectory visualization must be redesigned to mirror the Emergency Corridor UX:
+- Each vehicle's route must show a **live animated progress bar** that travels from 0% to 100% over a realistic duration (e.g. 5–10 minutes for a city-scale Pune route).
+- Display **4 discrete checkpoint nodes** (e.g. Dispatch → Node 2 → Node 3 → Target) that highlight green as the simulated vehicle passes each one.
+- Show the Origin → Destination row with distinct icons (green origin pin, red destination flag).
+- Show a "% cleared" counter and an estimated time/distance remaining readout.
+- The animation must use a stable timer reference so it does not restart when the parent re-renders.
+- Mock trajectory coordinates must use realistic Pune road-network waypoints (not straight-line Haversine paths) — at minimum 3–5 intermediate lat/lng points per vehicle route.
 
-### R2. Page Restructuring & Login
-- Add a well-structured, basic Login Page (no role-based access needed yet, just a gateway to the app).
-- Remove the ANPR page completely from the routing and sidebar.
-- Merge the "Alerts" and "Incidents" pages into a single new component/page called "Incident Flagging".
-- Merge "Analytics" and "Traffic Analytics" into a single page called "Traffic Analytics".
+### R2. Grayscale Leaflet Map with Card Layout
+- Apply a CSS grayscale filter to the Leaflet map tiles so the map renders in black-and-white / desaturated mode (both light and dark theme).
+- The Leaflet map must be wrapped inside a styled card element with a visible border, rounded corners, a header bar (showing e.g. "Live Trajectory Map"), and a drop shadow — it must NOT be a full-bleed/full-width element.
+- The map card must have a fixed or responsive height (e.g. 300–400px) that fits cleanly inside the Vehicle Search layout.
 
-### R3. Vehicle Search Enhancements
-- In the Vehicle Search page, integrate a map-based trajectory view using Leaflet.
-- Include a button to show the location trajectory on a map for a single selected vehicle.
-- Include a button to show the trajectories for all vehicles.
-- *Note: The user requested to use the Stitch plugin if helpful, but you are free to edit the React source code directly to achieve these changes.*
+### R3. Build Integrity
+- `npm run build` must exit 0 with no errors after all changes.
+- No existing pages or components (other than VehicleSearch.jsx) may be broken.
 
 ## Acceptance Criteria
 
-### UI & Theme
-- [ ] Running `npm run dev` starts the frontend successfully.
-- [ ] The app boots in Light mode by default.
-- [ ] Toggling the theme switches backgrounds, text, and component colors correctly between light and dark without breaking visibility.
-- [ ] Semantic colors (Red, Green, Yellow, etc.) are used consistently for statuses.
+### Trajectory Animation
+- [ ] Opening the trajectory view for any vehicle shows an animated progress bar that visibly moves from 0% upward.
+- [ ] Checkpoint nodes change color (gray → green) as progress crosses each threshold.
+- [ ] Origin and destination are shown with distinct labeled icons.
+- [ ] Mock routes contain ≥ 3 intermediate lat/lng waypoints for at least 4 vehicles.
 
-### Structure
-- [ ] The app boots to the Login page. Entering any credentials proceeds to the dashboard.
-- [ ] The sidebar navigation exactly matches the new structure (ANPR removed, merged Incident Flagging, merged Traffic Analytics).
+### Map Appearance
+- [ ] The Leaflet map tiles appear visibly desaturated / grayscale (achieved via CSS filter on .leaflet-tile-pane or equivalent).
+- [ ] The map is enclosed in a card with border, rounded corners, a title header, and shadow.
+- [ ] The map card is NOT full-bleed; it fits inside the page layout with padding/margin around it.
 
-### Vehicle Trajectory
-- [ ] The Vehicle Search page successfully renders a Leaflet map.
-- [ ] Clicking to show a trajectory draws a visible path or markers on the map for the selected vehicle(s).
-
+### Build
+- [ ] `npm run build` exits with code 0.

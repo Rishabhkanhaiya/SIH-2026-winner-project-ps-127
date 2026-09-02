@@ -41,6 +41,15 @@ body {
   filter: brightness(0.7) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.8);
 }
 
+/* Grayscale Leaflet Map */
+.grayscale-map .leaflet-tile-pane {
+  filter: grayscale(100%) contrast(1.05) brightness(0.98);
+}
+
+.dark .grayscale-map .leaflet-tile-pane {
+  filter: grayscale(100%) invert(0.92) contrast(1.15) brightness(0.85);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: #f1f5f9; }
