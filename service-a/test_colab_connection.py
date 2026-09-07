@@ -38,7 +38,7 @@ def main():
 
     base_url = args.url.rstrip("/")
     print("=" * 65)
-    print(f"🔗 TESTING GOOGLE COLAB GPU CONNECTION AT: {base_url}")
+    print(f"[*] TESTING GOOGLE COLAB GPU CONNECTION AT: {base_url}")
     print("=" * 65)
 
     # 1. Health check
@@ -50,7 +50,7 @@ def main():
         print(f"  --> Status Code: {r.status_code} ({dur:.1f}ms)")
         print(f"  --> Response: {r.json()}")
     except Exception as exc:
-        print(f"  ❌ Health check failed: {exc}")
+        print(f"  [-] Health check failed: {exc}")
         print("  Please verify the Colab notebook is running cell 6 (Cloudflare Tunnel).")
         sys.exit(1)
 
@@ -66,7 +66,7 @@ def main():
         data = r.json()
         print(f"  --> Extracted Plate: '{data.get('plate_number')}' | Server Latency: {data.get('latency_ms')}ms")
     except Exception as exc:
-        print(f"  ❌ Single image test failed: {exc}")
+        print(f"  [-] Single image test failed: {exc}")
 
     # 3. Parallel batch test
     print(f"\n[Step 3] Testing Parallel Batch Recognition (/predict/batch with {args.batch_size} plates)...")
@@ -88,13 +88,14 @@ def main():
         for item in batch_res.get("results", []):
             print(f"    - [{item.get('filename')}] => '{item.get('plate_number')}' ({item.get('latency_ms')}ms)")
     except Exception as exc:
-        print(f"  ❌ Batch test failed: {exc}")
+        print(f"  [-] Batch test failed: {exc}")
 
     print("\n" + "=" * 65)
-    print("✅ CONNECTION TEST COMPLETE! Your local SIH system can now offload GPU workloads to Colab.")
+    print("[+] CONNECTION TEST COMPLETE! Your local SIH system can now offload GPU workloads to Colab.")
     print(f"To configure Service A, add to your service-a/.env file:")
     print(f"    COLAB_OCR_URL={base_url}")
     print("=" * 65)
+
 
 
 
