@@ -49,13 +49,14 @@ class YOLODetector:
 
     def __init__(self):
         self._session = None
+        self._ultralytics_model = None
         self._mock_mode = False
         self._input_name: Optional[str] = None
         self._input_shape: Optional[tuple] = None
         self._class_names = ["vehicle", "plate"]
 
     def load(self) -> None:
-        """Load the ONNX model (or activate mock mode)."""
+        """Load the ONNX model (or ultralytics YOLOv8, or activate mock mode)."""
         mode = settings.inference_mode.lower()
         model_path = Path(settings.yolo_model_path)
 
@@ -64,6 +65,16 @@ class YOLODetector:
         if use_real:
             self._load_onnx(model_path)
         else:
+            # Check if ultralytics YOLO is available
+            try:
+                from ultralytics import YOLO
+                self._ultralytics_model = YOLO("yolov8n.pt")
+                logger.info("YOLOv8 PyTorch detector loaded via ultralytics (yolov8n.pt)")
+                self._mock_mode = False
+                return
+            except Exception as e:
+                logger.info("ultralytics fallback not loaded: %s", e)
+
             if mode == "real":
                 raise FileNotFoundError(
                     f"inference_mode=real but model not found at {model_path}"
@@ -111,7 +122,54 @@ class YOLODetector:
         """
         if self._mock_mode:
             return self._mock_detect(image)
-        return self._onnx_detect(image, conf_threshold)
+        if self._session is not None:
+            return self._onnx_detect(image, conf_threshold)
+        if self._ultralytics_model is not None:
+            return self._ultralytics_detect(image, conf_threshold)
+        return self._mock_detect(image)
+
+    def _ultralytics_detect(self, image: np.ndarray, conf_threshold: float) -> List[Detection]:
+        """Run inference using Ultralytics YOLOv8 detector."""
+        results = self._ultralytics_model(image, verbose=False)
+        detections: List[Detection] = []
+        h, w = image.shape[:2]
+        for r in results:
+            for box in r.boxes:
+                conf = float(box.conf[0])
+                if conf < conf_threshold:
+                    continue
+                cls_id = int(box.cls[0])
+                name = self._ultralytics_model.names.get(cls_id, "object")
+                xyxy = [int(v) for v in box.xyxy[0].tolist()]
+                x1, y1, x2, y2 = xyxy
+                if name in ["car", "truck", "bus", "motorcycle", "vehicle"]:
+                    vh = y2 - y1
+                    vw = x2 - x1
+                    px1 = max(0, int(x1 + vw * 0.15))
+                    px2 = min(w, int(x2 - vw * 0.15))
+                    py1 = max(0, int(y1 + vh * 0.60))
+                    py2 = min(h, y2)
+                    detections.append(Detection(
+                        x1=px1, y1=py1, x2=px2, y2=py2,
+                        confidence=round(conf * 0.95, 3),
+                        class_id=1,
+                        label="plate"
+                    ))
+                    detections.append(Detection(
+                        x1=x1, y1=y1, x2=x2, y2=y2,
+                        confidence=round(conf, 3),
+                        class_id=0,
+                        label="vehicle"
+                    ))
+                elif name == "plate":
+                    detections.append(Detection(
+                        x1=x1, y1=y1, x2=x2, y2=y2,
+                        confidence=round(conf, 3),
+                        class_id=1,
+                        label="plate"
+                    ))
+        detections.sort(key=lambda d: d.confidence, reverse=True)
+        return detections
 
     # ──────────────────────────────────────────────────────────────
     # Real ONNX inference

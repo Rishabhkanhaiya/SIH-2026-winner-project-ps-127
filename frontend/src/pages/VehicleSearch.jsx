@@ -11,7 +11,8 @@ import { ConfidenceBadge } from '../components/StatusBadge'
 import { useOsrmRoute } from '../hooks/useOsrmRoute'
 import {
   PlateScannerDropzone, HsrpPlateBadge,
-  IssueChallanModal, BlacklistModal, ChallanHistoryModal
+  IssueChallanModal, BlacklistModal, ChallanHistoryModal,
+  PipelineTelemetryCard
 } from '../components/VehicleInvestigation'
 
 // Fix leaflet default icon
@@ -922,6 +923,14 @@ export default function VehicleSearch() {
               </div>
             </div>
           </div>
+
+          {/* Computer Vision Pipeline Telemetry Card */}
+          {scannedResult.pipeline_telemetry && (
+            <PipelineTelemetryCard
+              telemetry={scannedResult.pipeline_telemetry}
+              cropPreview={scannedResult.crop_preview_base64}
+            />
+          )}
 
           {/* Quick Action Buttons for Scanned Plate */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">

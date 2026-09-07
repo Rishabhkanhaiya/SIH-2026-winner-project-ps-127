@@ -382,4 +382,6 @@ class PlateScanResponse(BaseModel):
     total_unpaid_fines: float = 0.0
     trajectory: Optional[TrajectoryResponse] = None
     evidence_image_url: Optional[str] = None
+    crop_preview_base64: Optional[str] = None
+    pipeline_telemetry: Optional[dict] = None
     message: Optional[str] = None

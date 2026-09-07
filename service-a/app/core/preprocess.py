@@ -15,14 +15,15 @@ import numpy as np
 from typing import Optional
 
 
-# Target height for OCR input (PaddleOCR works well with 48px height)
-_OCR_TARGET_HEIGHT = 48
+# Minimum dimensions for Qwen2.5-VL Vision Transformer tokens
+_MIN_TARGET_HEIGHT = 280
+_MIN_TARGET_WIDTH = 600
 
 
 def preprocess_plate_crop(
     image: np.ndarray,
     bbox: Optional[tuple[int, int, int, int]] = None,
-    target_height: int = _OCR_TARGET_HEIGHT,
+    target_height: Optional[int] = None,
 ) -> np.ndarray:
     """
     Run the full preprocessing pipeline on a frame or plate crop.
@@ -31,10 +32,10 @@ def preprocess_plate_crop(
         image: BGR numpy array from OpenCV.
         bbox: Optional (x1, y1, x2, y2) to crop from the full frame first.
               If None, the whole image is treated as the plate crop.
-        target_height: Height to resize the output to (width scaled proportionally).
+        target_height: Optional minimum height override.
 
     Returns:
-        Preprocessed BGR image ready for PaddleOCR.
+        Preprocessed BGR image optimized for Qwen2.5-VL Vision AI.
     """
     # Step 1: Crop
     if bbox is not None:
@@ -50,8 +51,7 @@ def preprocess_plate_crop(
         crop = image.copy()
 
     if crop.size == 0:
-        # Fallback: return a blank image if crop is empty
-        return np.zeros((target_height, target_height * 3, 3), dtype=np.uint8)
+        return np.zeros((_MIN_TARGET_HEIGHT, _MIN_TARGET_WIDTH, 3), dtype=np.uint8)
 
     # Step 2: Deskew
     crop = _deskew(crop)
@@ -62,12 +62,15 @@ def preprocess_plate_crop(
     # Step 4: Light bilateral denoising
     crop = cv2.bilateralFilter(crop, d=5, sigmaColor=75, sigmaSpace=75)
 
-    # Step 5: Resize to target height, preserve aspect ratio
+    # Step 5: Adaptive Lanczos Super-Resolution for Vision Transformer token saturation
     h, w = crop.shape[:2]
-    if h > 0:
-        scale = target_height / h
-        new_w = max(1, int(w * scale))
-        crop = cv2.resize(crop, (new_w, target_height), interpolation=cv2.INTER_LINEAR)
+    min_h = target_height or _MIN_TARGET_HEIGHT
+    min_w = _MIN_TARGET_WIDTH
+    if h > 0 and (h < min_h or w < min_w):
+        scale = max(min_h / float(h), min_w / float(w))
+        new_w = int(round(w * scale))
+        new_h = int(round(h * scale))
+        crop = cv2.resize(crop, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
     return crop
 
