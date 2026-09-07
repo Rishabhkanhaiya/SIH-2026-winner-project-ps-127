@@ -102,7 +102,7 @@ def _run_ocr_pipeline(image_bytes: bytes, override_url: Optional[str] = None) ->
             r = requests.post(
                 f"{colab_url}/predict",
                 files={"file": ("plate.jpg", image_bytes, "image/jpeg")},
-                timeout=7,
+                timeout=30,
             )
             if r.status_code == 200:
                 data = r.json()
@@ -127,7 +127,7 @@ def _run_ocr_pipeline(image_bytes: bytes, override_url: Optional[str] = None) ->
             f"{service_a_url}/api/v1/read-plate",
             files={"image": ("plate.jpg", image_bytes, "image/jpeg")},
             data={"camera_id": "CAM-SCANNER"},
-            timeout=4,
+            timeout=15,
         )
 
         if r.status_code == 200:

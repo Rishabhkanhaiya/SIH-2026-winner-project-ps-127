@@ -400,7 +400,7 @@ function Start-BackgroundService {
 
 # 4. Launch Service A (Port 8001)
 Write-Info "Starting Service-A (Perception and OCR Engine) on port 8001..."
-$cmdA = "`"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port 8001"
+$cmdA = "`"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload"
 $procA = Start-BackgroundService -Command $cmdA `
     -WorkingDirectory $script:ServiceADir `
     -LogPath (Join-Path $script:LogsDir "service-a.log") `
@@ -411,7 +411,7 @@ Write-Success "Service-A process launched (PID $($procA.Id))"
 
 # 5. Launch Service B (Port 8000)
 Write-Info "Starting Service-B (Central API and Backend) on port 8000..."
-$cmdB = "`"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+$cmdB = "`"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 $procB = Start-BackgroundService -Command $cmdB `
     -WorkingDirectory $script:ServiceBDir `
     -LogPath (Join-Path $script:LogsDir "service-b.log") `
