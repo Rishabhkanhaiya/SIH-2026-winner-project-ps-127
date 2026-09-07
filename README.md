@@ -3,16 +3,29 @@
 > AI-Powered Urban Traffic Intelligence | Team Trace Forge | SIH26127
 
 [![GitHub](https://img.shields.io/badge/GitHub-Rishabhkanhaiya/M1--Of--the--sih-blue)](https://github.com/Rishabhkanhaiya/M1-Of-the-sih)
+[![Architecture](https://img.shields.io/badge/Architecture-Specification-success)](ARCHITECTURE.md)
+[![Documentation](https://img.shields.io/badge/Documentation-Handbook-informational)](DOCUMENTATION.md)
+
+### 📚 Official Project Documentation
+- 📐 **[System Architecture Specification (ARCHITECTURE.md)](ARCHITECTURE.md)**: Exhaustive microservice topology, ERD schemas, mathematical anomaly formulas, and API contracts.
+- 📖 **[Master Operations Handbook (DOCUMENTATION.md)](DOCUMENTATION.md)**: Step-by-step user manual, screen guide, multi-camera video feeder runbook, Colab GPU OCR setup, and 5-minute hackathon presentation script.
+
+---
 
 ## 🚀 Quick Start (One Command)
 
+### Option A: Windows PowerShell (Direct Local Execution)
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_all.ps1
+```
+
+### Option B: Docker Compose
 ```bash
 docker compose up --build
 ```
 
 Then open: **http://localhost:5173**
-
-Login: `admin` / `admin123`
+Login: `admin` / `admin123` or `officer1` / `officer123`
 
 ---
 
