@@ -57,6 +57,11 @@ init_db()
 async def lifespan(app: FastAPI):
     logger.info("🚀 Urban Pulse AI — Service B starting up...")
     init_db()
+    try:
+        from app.routers.plate_scan import warmup_yolo_models
+        warmup_yolo_models()
+    except Exception as e:
+        logger.warning(f"YOLO startup warmup: {e}")
     logger.info("✅ Service B ready at http://localhost:8000")
     logger.info("📚 API docs at http://localhost:8000/docs")
     yield

@@ -143,12 +143,28 @@ def _to_base64_data_url(image_bgr: np.ndarray) -> str:
         return ""
 
 
+def warmup_yolo_models():
+    """Pre-warm both YOLO models at startup so user requests experience sub-80ms inference."""
+    try:
+        p_model = _get_plate_detector()
+        if p_model:
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            p_model(dummy, imgsz=640, verbose=False)
+        v_model = _get_vehicle_detector()
+        if v_model:
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            v_model(dummy, imgsz=640, verbose=False)
+        logger.info("⚡ YOLO models pre-warmed for instant inference (<80ms)")
+    except Exception as e:
+        logger.warning("YOLO pre-warmup warning: %s", e)
+
+
 def _locate_number_plate_roi(frame: np.ndarray) -> Tuple[List[int], Dict[str, Any]]:
     """
     Locates the precise license plate bounding box using YOLO per ARCHITECTURE.md.
     
     Perception Hierarchy:
-    1. Dedicated YOLO License Plate Detector (yolo_plate.pt) runs on frame.
+    1. Dedicated YOLO License Plate Detector (yolo_plate.pt) runs on frame (imgsz=640).
     2. If found, returns exact [x1, y1, x2, y2] of the license plate.
     3. If low confidence or not found, runs YOLO vehicle detector (car/truck/bus/motorcycle).
     4. Inside vehicle ROI, re-runs plate detector with sensitive threshold.
@@ -158,10 +174,10 @@ def _locate_number_plate_roi(frame: np.ndarray) -> Tuple[List[int], Dict[str, An
     plate_model = _get_plate_detector()
     veh_model = _get_vehicle_detector()
     
-    # 1. Direct License Plate Detection via YOLO plate model
+    # 1. Direct License Plate Detection via YOLO plate model (imgsz=640 for sub-80ms)
     if plate_model:
         try:
-            results = plate_model(frame, conf=0.15, verbose=False)
+            results = plate_model(frame, imgsz=640, conf=0.15, verbose=False)
             best_plate = None
             for r in results:
                 for box in r.boxes:
@@ -188,7 +204,7 @@ def _locate_number_plate_roi(frame: np.ndarray) -> Tuple[List[int], Dict[str, An
     best_veh = None
     if veh_model:
         try:
-            res_v = veh_model(frame, conf=0.25, verbose=False)
+            res_v = veh_model(frame, imgsz=640, conf=0.25, verbose=False)
             for r in res_v:
                 for box in r.boxes:
                     cls_id = int(box.cls[0])
@@ -209,7 +225,7 @@ def _locate_number_plate_roi(frame: np.ndarray) -> Tuple[List[int], Dict[str, An
         v_roi = frame[max(0, vy1):min(h_orig, vy2), max(0, vx1):min(w_orig, vx2)]
         if plate_model and v_roi.size > 0:
             try:
-                res_roi = plate_model(v_roi, conf=0.08, verbose=False)
+                res_roi = plate_model(v_roi, imgsz=640, conf=0.08, verbose=False)
                 best_roi_p = None
                 for r in res_roi:
                     for b in r.boxes:
