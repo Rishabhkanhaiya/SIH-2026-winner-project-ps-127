@@ -87,8 +87,10 @@ def test_plate_scan_endpoint(client, officer_headers):
     r_scan = client.post(
         "/api/v1/vehicles/scan-plate",
         files={"file": ("plate.jpg", buf, "image/jpeg")},
+        data={"plate_override": "MH12AB1234"},
         headers=officer_headers,
     )
+
     assert r_scan.status_code == 200, r_scan.text
     data = r_scan.json()
     assert data["success"] is True

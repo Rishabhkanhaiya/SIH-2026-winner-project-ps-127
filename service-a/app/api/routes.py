@@ -121,11 +121,9 @@ async def read_plate(
         bbox_tuple = (best_det.x1, best_det.y1, best_det.x2, best_det.y2)
         plate_crop = preprocess_plate_crop(frame, bbox=bbox_tuple)
 
-        # ── 5. OCR (Qwen Colab GPU if active, otherwise local EasyOCR/mock) ──
-        if qwen_colab_client.is_configured():
-            raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
-        else:
-            raw_text, ocr_confidence = ocr_engine.read(plate_crop)
+        # ── 5. OCR via Qwen2.5-VL Vision-Language Model ──
+        raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
+
 
         if raw_text is None or ocr_confidence < _MIN_CONFIDENCE:
             elapsed = int((time.perf_counter() - t_start) * 1000)
@@ -309,10 +307,8 @@ async def read_plates_batch(
             bbox_tuple = (best_det.x1, best_det.y1, best_det.x2, best_det.y2)
             plate_crop = preprocess_plate_crop(frame, bbox=bbox_tuple)
 
-            if qwen_colab_client.is_configured():
-                raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
-            else:
-                raw_text, ocr_confidence = ocr_engine.read(plate_crop)
+            raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
+
 
             if raw_text is None or ocr_confidence < _MIN_CONFIDENCE:
                 elapsed = int((time.perf_counter() - t_start) * 1000)

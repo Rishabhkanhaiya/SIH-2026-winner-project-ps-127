@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Upload, Camera, ShieldAlert, FileText, CheckCircle2,
   AlertTriangle, RefreshCw, X, ShieldCheck, DollarSign,
-  MapPin, Clock, Car, ChevronRight, AlertCircle, ArrowRight
+  MapPin, Clock, Car, ChevronRight, AlertCircle, ArrowRight,
+  Cpu, Link, Check, ExternalLink
 } from 'lucide-react'
-import { scanPlatePhoto } from '../api/scan'
+import { scanPlatePhoto, getColabStatus, updateColabUrl } from '../api/scan'
 import { issueChallan, getChallans, payChallan } from '../api/challans'
 import { addToBlacklist, removeFromBlacklist } from '../api/blacklist'
+
 
 export const VIOLATION_PRESETS = [
   { label: 'Overspeeding (> 85 km/h in 50 km/h zone)', fine: 2000, category: 'Speeding' },
@@ -461,19 +463,97 @@ export function PlateScannerDropzone({ onScanComplete, onSelectSample }) {
   const [dragging, setDragging] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [error, setError] = useState('')
+  const [manualPlateInput, setManualPlateInput] = useState('')
+  const [manualLoading, setManualLoading] = useState(false)
+
+  // Colab GPU connection state
+  const [colabInfo, setColabInfo] = useState({ url: '', connected: false, gpu: null, error: null })
+  const [colabUrlInput, setColabUrlInput] = useState('')
+  const [showColabConfig, setShowColabConfig] = useState(false)
+  const [savingColab, setSavingColab] = useState(false)
+  const [colabMessage, setColabMessage] = useState('')
+
   const fileInputRef = useRef(null)
+
+  // Fetch Colab status on mount
+  useEffect(() => {
+    fetchColabStatus()
+  }, [])
+
+  const fetchColabStatus = async () => {
+    try {
+      const data = await getColabStatus()
+      setColabInfo(data)
+      setColabUrlInput(data.url || '')
+    } catch (err) {
+      setColabInfo(prev => ({ ...prev, connected: false, error: 'Cannot check Colab status' }))
+    }
+  }
+
+  const handleUpdateColab = async (e) => {
+    e?.preventDefault()
+    if (!colabUrlInput.trim()) return
+    setSavingColab(true)
+    setColabMessage('')
+    try {
+      const res = await updateColabUrl(colabUrlInput.trim())
+      setColabInfo({
+        url: res.url,
+        connected: res.connected,
+        gpu: res.gpu,
+        model: res.model,
+        error: null,
+      })
+      setColabMessage('Colab GPU connected and verified successfully!')
+      setTimeout(() => setShowColabConfig(false), 2000)
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err.message || 'Connection failed'
+      setColabInfo(prev => ({ ...prev, connected: false, error: detail }))
+      setColabMessage(`Error: ${detail}`)
+    } finally {
+      setSavingColab(false)
+    }
+  }
 
   const handleFile = async (file) => {
     if (!file) return
     setScanning(true)
     setError('')
     try {
-      const result = await scanPlatePhoto(file)
+      const result = await scanPlatePhoto(file, null, colabInfo.url)
       if (onScanComplete) onScanComplete(result)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Failed to scan plate photo. Please try again.')
+      const detail = err?.response?.data?.detail || 'Failed to scan plate photo. Please ensure Colab Qwen2.5-VL GPU is running.'
+      setError(detail)
     } finally {
       setScanning(false)
+    }
+  }
+
+  const handleManualLookup = async (e) => {
+    e?.preventDefault()
+    if (!manualPlateInput.trim()) return
+    setManualLoading(true)
+    setError('')
+    try {
+      // Create a small 1x1 dummy blob to satisfy file requirement while passing plate_override
+      const canvas = document.createElement('canvas')
+      canvas.width = 10
+      canvas.height = 10
+      canvas.toBlob(async (blob) => {
+        try {
+          const result = await scanPlatePhoto(blob, null, colabInfo.url, manualPlateInput.trim())
+          if (onScanComplete) onScanComplete(result)
+          setManualPlateInput('')
+        } catch (err) {
+          setError(err?.response?.data?.detail || 'Failed to lookup vehicle details.')
+        } finally {
+          setManualLoading(false)
+        }
+      }, 'image/jpeg')
+    } catch (err) {
+      setError(err?.message || 'Lookup error')
+      setManualLoading(false)
     }
   }
 
@@ -487,22 +567,90 @@ export function PlateScannerDropzone({ onScanComplete, onSelectSample }) {
 
   return (
     <div className="rounded-2xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Header & Colab GPU Status */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-            <Camera className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <Camera className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">AI Plate Scanner & Investigation</h3>
-            <p className="text-xs text-slate-500">Upload plate snap to immediately retrieve trajectory, history & enforcement actions</p>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">AI Plate Scanner & Trajectory Reconstruction</h3>
+            <p className="text-xs text-slate-500">Real Qwen2.5-VL Vision AI pipeline with MoRTH Grammar Validation</p>
           </div>
         </div>
-        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
-          Qwen2.5-VL Powered
-        </span>
+
+        {/* Colab GPU Connection Pill */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowColabConfig(!showColabConfig)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              colabInfo.connected
+                ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30'
+                : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${colabInfo.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <Cpu className="w-3.5 h-3.5" />
+            <span>
+              {colabInfo.connected
+                ? `Colab GPU Active (${colabInfo.gpu || 'Qwen2.5-VL'})`
+                : 'Colab GPU Offline'}
+            </span>
+            <span className="text-[10px] underline ml-1">Configure</span>
+          </button>
+        </div>
       </div>
 
-      {/* Dropzone */}
+      {/* Colab URL Configuration Drawer */}
+      {showColabConfig && (
+        <form onSubmit={handleUpdateColab} className="p-3.5 rounded-xl bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-700 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <Link className="w-3.5 h-3.5 text-blue-500" />
+              Google Colab Cloudflare Tunnel Connection
+            </div>
+            <button
+              type="button"
+              onClick={fetchColabStatus}
+              className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Re-check Status
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Paste the active public URL from Cell 14 of your Google Colab notebook (e.g. <code>https://*.trycloudflare.com</code>).
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              placeholder="https://xxxx.trycloudflare.com"
+              value={colabUrlInput}
+              onChange={e => setColabUrlInput(e.target.value)}
+              className="flex-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-[#101C2D] px-3 py-1.5 text-xs text-slate-900 dark:text-white font-mono outline-none"
+            />
+            <button
+              type="submit"
+              disabled={savingColab}
+              className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors disabled:opacity-50"
+            >
+              {savingColab ? 'Verifying...' : 'Connect GPU'}
+            </button>
+          </div>
+          {colabMessage && (
+            <div className={`text-xs ${colabMessage.startsWith('Error') ? 'text-red-500' : 'text-emerald-500'} font-semibold`}>
+              {colabMessage}
+            </div>
+          )}
+          {colabInfo.error && !colabMessage && (
+            <div className="text-xs text-amber-600 dark:text-amber-400">
+              Connection Notice: {colabInfo.error}
+            </div>
+          )}
+        </form>
+      )}
+
+      {/* Photo Dropzone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
@@ -526,8 +674,8 @@ export function PlateScannerDropzone({ onScanComplete, onSelectSample }) {
           <div className="flex flex-col items-center justify-center py-4 space-y-3">
             <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
             <div className="space-y-1">
-              <div className="text-sm font-bold text-slate-900 dark:text-white">Analyzing License Plate with Qwen2.5-VL...</div>
-              <div className="text-xs text-slate-500">Executing Super-Resolution Lanczos Upscaling & MoRTH Grammar Verification</div>
+              <div className="text-sm font-bold text-slate-900 dark:text-white">Analyzing Vehicle Photo with Qwen2.5-VL...</div>
+              <div className="text-xs text-slate-500">Executing Vision-Language Character Recognition & MoRTH Grammar Verification</div>
             </div>
           </div>
         ) : (
@@ -536,39 +684,59 @@ export function PlateScannerDropzone({ onScanComplete, onSelectSample }) {
               <Upload className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Click to upload photo</span>
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Click to upload vehicle photo</span>
               <span className="text-sm text-slate-500"> or drag and drop image</span>
             </div>
-            <p className="text-xs text-slate-400">Supports PNG, JPG, JPEG from CCTV crops or mobile capture</p>
+            <p className="text-xs text-slate-400">Upload CCTV frame or camera snapshot (e.g. DL 01 AB 2345, MH 12 AB 1234)</p>
           </div>
         )}
       </div>
 
       {error && (
-        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-2.5 rounded-lg">
-          {error}
+        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl border border-red-200 dark:border-red-500/20 space-y-1">
+          <div className="font-bold flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            OCR Pipeline Notice
+          </div>
+          <div>{error}</div>
         </div>
       )}
 
-      {/* Preset Demo Samples */}
-      <div className="flex items-center gap-2 flex-wrap pt-1">
-        <span className="text-xs font-semibold text-slate-500">Quick Test Presets:</span>
-        {[
-          { plate: 'MH 12 AB 1234', label: 'MH 12 AB 1234 (Pune Central)' },
-          { plate: 'KA 03 MN 9993', label: 'KA 03 MN 9993 (Karnataka HSRP)' },
-          { plate: 'DL 01 AB 2345', label: 'DL 01 AB 2345 (Delhi)' },
-          { plate: 'UP 32 GH 7890', label: 'UP 32 GH 7890 (Lucknow)' },
-        ].map(sample => (
+      {/* Manual Plate Identification & Preset Fleet */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+        <form onSubmit={handleManualLookup} className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Direct Plate Lookup:</span>
+          <input
+            type="text"
+            placeholder="e.g. DL 01 AB 2345"
+            value={manualPlateInput}
+            onChange={e => setManualPlateInput(e.target.value)}
+            className="w-36 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#162438] px-2.5 py-1 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase outline-none"
+          />
           <button
-            key={sample.plate}
-            type="button"
-            onClick={() => onSelectSample(sample.plate)}
-            className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#162438] text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition-colors"
+            type="submit"
+            disabled={manualLoading || !manualPlateInput.trim()}
+            className="px-3 py-1 rounded-lg bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white text-xs font-semibold disabled:opacity-40"
           >
-            {sample.plate}
+            {manualLoading ? 'Loading...' : 'Track'}
           </button>
-        ))}
+        </form>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-semibold text-slate-500">Fleet Vehicles:</span>
+          {['DL 01 AB 2345', 'MH 12 AB 1234', 'MH 14 EF 5678', 'KA 03 MN 9993'].map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onSelectSample(p)}
+              className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#162438] text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition-colors"
+            >
+              {p}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
 }
+

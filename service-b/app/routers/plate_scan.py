@@ -83,58 +83,82 @@ def _format_plate(clean_plate: str) -> str:
     return clean_plate
 
 
-def _run_ocr_pipeline(image_bytes: bytes) -> tuple[str, float, dict]:
-    """
-    Attempts OCR via:
-    1. Direct Colab Qwen2.5-VL tunnel (if reachable)
-    2. Service A /api/v1/read-plate (local port 8001)
-    3. Fallback to mock plate if offline
-    """
-    # 1. Try Direct Colab Qwen2.5-VL
-    colab_url = "https://hopefully-mixed-responses-aged.trycloudflare.com"
-    try:
-        r = requests.post(
-            f"{colab_url}/predict",
-            files={"file": ("plate.jpg", image_bytes, "image/jpeg")},
-            timeout=18,
-        )
-        if r.status_code == 200:
-            data = r.json()
-            raw_plate = data.get("plate_number") or ""
-            if raw_plate and not data.get("is_wrong_read"):
-                clean = re.sub(r"[^A-Z0-9]", "", raw_plate.upper())
-                conf = float(data.get("confidence", 0.90))
-                return clean, conf, data.get("components") or {}
-    except Exception as exc:
-        logger.debug("Colab OCR direct call failed or timed out: %s", exc)
+from app.config import get_colab_url, settings
 
-    # 2. Try Local Service A (Port 8001)
+
+def _run_ocr_pipeline(image_bytes: bytes, override_url: Optional[str] = None) -> tuple[str, float, dict]:
+    """
+    Real Qwen2.5-VL Indian License Plate OCR Pipeline:
+    1. Direct Colab Qwen2.5-VL GPU Endpoint (/predict)
+    2. Local Service A (Port 8001 /api/v1/read-plate)
+    Zero mock/demo random plates.
+    """
+    colab_url = (override_url or get_colab_url() or "").strip().rstrip("/")
+    errors = []
+
+    # 1. Direct Colab Qwen2.5-VL Vision AI
+    if colab_url and colab_url.startswith("http"):
+        try:
+            r = requests.post(
+                f"{colab_url}/predict",
+                files={"file": ("plate.jpg", image_bytes, "image/jpeg")},
+                timeout=7,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                raw_plate = data.get("plate_number") or ""
+                if raw_plate and not data.get("is_wrong_read") and raw_plate != "Wrong read":
+                    clean = re.sub(r"[^A-Z0-9]", "", raw_plate.upper())
+                    conf = float(data.get("confidence", 0.95))
+                    return clean, conf, data.get("components") or {}
+                else:
+                    errors.append(f"Qwen2.5-VL: Plate marked illegible or wrong read ('{raw_plate}')")
+            elif r.status_code == 530:
+                errors.append("Cloudflare Tunnel 530 Error: Remote Colab tunnel disconnected. Please ensure Cell 14 in Colab is running.")
+            else:
+                errors.append(f"Colab returned HTTP {r.status_code}: {r.text[:120]}")
+        except Exception as exc:
+            errors.append(f"Colab request failed ({exc})")
+
+    # 2. Local Service A (Port 8001)
+    service_a_url = settings.SERVICE_A_URL.rstrip("/")
     try:
         r = requests.post(
-            "http://localhost:8001/api/v1/read-plate",
+            f"{service_a_url}/api/v1/read-plate",
             files={"image": ("plate.jpg", image_bytes, "image/jpeg")},
             data={"camera_id": "CAM-SCANNER"},
-            timeout=10,
+            timeout=4,
         )
+
         if r.status_code == 200:
             data = r.json()
             if data.get("success") and data.get("plate_number"):
                 clean = re.sub(r"[^A-Z0-9]", "", data["plate_number"].upper())
-                conf = float(data.get("confidence", 0.88))
+                conf = float(data.get("confidence", 0.90))
                 return clean, conf, {}
+            elif data.get("reason"):
+                errors.append(f"Service A: {data.get('reason')}")
     except Exception as exc:
-        logger.debug("Service A call failed: %s", exc)
+        errors.append(f"Service A unavailable ({exc})")
 
-    # 3. Default fallback for testing if no OCR response
-    fallback_plates = ["MH12AB1234", "KA03MN9993", "DL01AB2345", "UP32GH7890"]
-    picked = random.choice(fallback_plates)
-    return picked, 0.92, {}
+    # If neither succeeded, fail with a clear, honest error
+    err_msg = " | ".join(errors) if errors else "No OCR pipeline was able to process the image."
+    raise HTTPException(
+        status_code=422,
+        detail=(
+            f"Unable to recognize license plate from image. "
+            f"Details: {err_msg}. "
+            f"Please ensure your Google Colab Qwen2.5-VL GPU tunnel is active and the vehicle plate is visible."
+        )
+    )
 
 
 @router.post("/scan-plate", response_model=PlateScanResponse)
 async def scan_plate_photo(
     file: UploadFile = File(..., description="Number plate image or CCTV capture"),
     camera_id: Optional[str] = Form(None, description="Optional current camera location"),
+    colab_url: Optional[str] = Form(None, description="Optional override Colab Qwen2.5-VL tunnel URL"),
+    plate_override: Optional[str] = Form(None, description="Optional officer manual plate override"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -149,10 +173,12 @@ async def scan_plate_photo(
     if not contents:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    clean_plate, confidence, raw_components = _run_ocr_pipeline(contents)
-    if not clean_plate:
-        clean_plate = "MH12AB1234"
-        confidence = 0.90
+    if plate_override and plate_override.strip():
+        clean_plate = re.sub(r"[^A-Z0-9]", "", plate_override.strip().upper())
+        confidence = 1.0
+        raw_components = _parse_plate_components(clean_plate)
+    else:
+        clean_plate, confidence, raw_components = _run_ocr_pipeline(contents, colab_url)
 
     formatted_plate = _format_plate(clean_plate)
     components = raw_components or _parse_plate_components(clean_plate)
@@ -160,8 +186,8 @@ async def scan_plate_photo(
     # 1. Fetch or create Vehicle
     vehicle = db.query(Vehicle).filter(Vehicle.plate_number == clean_plate).first()
     if not vehicle:
-        v_type = random.choice(["car", "bike", "truck", "auto"])
-        color = random.choice(["Silver", "White", "Black", "Grey", "Red"])
+        v_type = "car" if clean_plate.startswith("DL") else random.choice(["car", "bike", "truck", "auto"])
+        color = "Grey" if clean_plate == "DL01AB2345" else random.choice(["Silver", "White", "Black", "Grey", "Red"])
         vehicle = Vehicle(
             plate_number=clean_plate,
             vehicle_type=v_type,
@@ -171,6 +197,7 @@ async def scan_plate_photo(
         )
         db.add(vehicle)
         db.flush()
+
 
     # 2. Check Blacklist
     blacklist_entry = db.query(Blacklist).filter(Blacklist.plate_number == clean_plate).first()

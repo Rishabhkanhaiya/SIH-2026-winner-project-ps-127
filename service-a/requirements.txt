@@ -4,10 +4,11 @@ python-multipart>=0.0.9
 opencv-python-headless>=4.9.0.80
 onnxruntime>=1.18.0
 ultralytics>=8.2.0
-easyocr>=1.7.1
+requests>=2.31.0
 pydantic-settings>=2.2.1
 python-dotenv>=1.0.1
 numpy>=1.26.4
+
 Pillow>=10.3.0
 httpx>=0.27.0
 scipy>=1.13.0

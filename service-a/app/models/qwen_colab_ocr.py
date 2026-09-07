@@ -19,7 +19,6 @@ import numpy as np
 import requests
 
 from app.config import settings
-from app.models.ocr_pretrained import ocr_engine
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,6 @@ def prepare_crop_for_qwen(image: np.ndarray) -> np.ndarray:
         processed = cv2.resize(processed, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
 
     # 2. Dynamic Contrast Enhancement (1.35x) and Sharpness (Unsharp Mask)
-    # Convert to float for contrast scaling
     img_float = processed.astype(np.float32)
     mean_val = np.mean(img_float)
     img_contrast = (img_float - mean_val) * 1.35 + mean_val
@@ -60,7 +58,7 @@ def prepare_crop_for_qwen(image: np.ndarray) -> np.ndarray:
 
 
 class QwenColabOCRClient:
-    """Client for remote Qwen2.5-VL OCR server running on Google Colab or external GPU."""
+    """Client for remote Qwen2.5-VL OCR server running on Google Colab GPU."""
 
     def __init__(self, endpoint_url: Optional[str] = None):
         self.endpoint_url = (endpoint_url or settings.colab_ocr_url or "").rstrip("/")
@@ -84,18 +82,23 @@ class QwenColabOCRClient:
 
     def read(self, image: np.ndarray) -> Tuple[Optional[str], float]:
         """
-        Read single plate image via Colab GPU or fall back to local OCR engine.
+        Read single plate image via Colab Qwen2.5-VL GPU.
         Returns: (plate_number, confidence)
         """
+        if settings.inference_mode.lower() == "mock":
+            # Deterministic synthetic test plate for offline unit tests
+            return "DL01AB2345", 0.95
+
         if not self.is_configured():
-            return ocr_engine.read(image)
+            logger.warning("Colab Qwen2.5-VL endpoint not configured in COLAB_OCR_URL")
+            return None, 0.0
 
         try:
-            # Preprocess crop using new model super-resolution upscaling
+            # Preprocess crop using super-resolution upscaling
             enhanced_crop = prepare_crop_for_qwen(image)
             success, buffer = cv2.imencode(".png", enhanced_crop)
             if not success:
-                return ocr_engine.read(image)
+                return None, 0.0
 
             files = {"file": ("crop.png", io.BytesIO(buffer), "image/png")}
             url = f"{self.endpoint_url}/predict"
@@ -119,12 +122,12 @@ class QwenColabOCRClient:
 
                 return None, 0.0
             else:
-                logger.warning("Colab OCR returned status %s — falling back to local OCR", res.status_code)
-                return ocr_engine.read(image)
+                logger.warning("Colab Qwen2.5-VL OCR returned status %s: %s", res.status_code, res.text[:200])
+                return None, 0.0
 
         except Exception as exc:
-            logger.warning("Failed to connect to Colab OCR (%s) — falling back to local OCR", exc)
-            return ocr_engine.read(image)
+            logger.warning("Failed to connect to Colab Qwen2.5-VL OCR (%s)", exc)
+            return None, 0.0
 
     def read_batch(self, images: List[np.ndarray], batch_size: int = 4) -> List[Tuple[Optional[str], float]]:
         """
@@ -133,8 +136,11 @@ class QwenColabOCRClient:
         if not images:
             return []
 
+        if settings.inference_mode.lower() == "mock":
+            return [("DL01AB2345", 0.95) for _ in images]
+
         if not self.is_configured():
-            return [ocr_engine.read(img) for img in images]
+            return [(None, 0.0) for _ in images]
 
         try:
             files_payload = []
@@ -168,8 +174,9 @@ class QwenColabOCRClient:
                 return [self.read(img) for img in images]
 
         except Exception as exc:
-            logger.warning("Colab batch OCR request error (%s) — fallback to local", exc)
-            return [ocr_engine.read(img) for img in images]
+            logger.warning("Colab batch OCR request error (%s)", exc)
+            return [(None, 0.0) for _ in images]
+
 
 
 # Module-level client instance
