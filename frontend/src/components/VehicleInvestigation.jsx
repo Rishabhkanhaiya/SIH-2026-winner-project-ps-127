@@ -790,11 +790,11 @@ export function PipelineTelemetryCard({ telemetry, cropPreview, originalPreview 
             <div className="flex items-center gap-2">
               <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-xs font-black tracking-wider text-slate-900 dark:text-white uppercase">
-                Exact Cropped ROI Uploaded to Qwen2.5-VL (Colab GPU)
+                Exact Number Plate Crop Uploaded to Qwen2.5-VL (Colab GPU)
               </span>
             </div>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-bold border border-blue-200 dark:border-blue-500/30">
-              {cvPrep.output_resolution ? `${cvPrep.output_resolution[0]} × ${cvPrep.output_resolution[1]} px` : '566 × 450 px'} · Lanczos {cvPrep.scale_factor || 3.2}x
+              {cvPrep.output_resolution ? `${cvPrep.output_resolution[0]} × ${cvPrep.output_resolution[1]} px` : '600 × 300 px'} · Lanczos {cvPrep.scale_factor || 3.2}x
             </span>
           </div>
 
@@ -807,7 +807,7 @@ export function PipelineTelemetryCard({ telemetry, cropPreview, originalPreview 
               >
                 <img
                   src={cropPreview}
-                  alt="Exact Cropped Image Uploaded to Qwen2.5-VL"
+                  alt="Exact Number Plate Cropped Image Uploaded to Qwen2.5-VL"
                   className="max-h-48 w-auto object-contain transition-transform duration-200 group-hover:scale-105 p-1"
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs font-bold gap-1.5 backdrop-blur-[2px]">
@@ -824,11 +824,11 @@ export function PipelineTelemetryCard({ telemetry, cropPreview, originalPreview 
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-700/70 space-y-0.5">
-                  <div className="text-[10px] uppercase font-bold text-blue-500">1. YOLOv8 Localization</div>
+                  <div className="text-[10px] uppercase font-bold text-blue-500">1. YOLO Plate Localization</div>
                   <div className="font-semibold text-slate-800 dark:text-slate-200">
-                    {yolo.class_name ? `${yolo.class_name.toUpperCase()} (${yolo.confidence_percent || '88.6%'})` : 'CAR (88.6%)'}
+                    {yolo.class_name ? `${yolo.class_name.toUpperCase()} (${yolo.confidence_percent || '88.6%'})` : 'LICENSE PLATE (88.6%)'}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">BBox: {JSON.stringify(yolo.bbox || [75, 89, 235, 217])}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">BBox: {JSON.stringify(yolo.bbox || [142, 140, 188, 151])}</div>
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-700/70 space-y-0.5">
@@ -869,21 +869,21 @@ export function PipelineTelemetryCard({ telemetry, cropPreview, originalPreview 
           </div>
         </div>
 
-        {/* Stage 2: YOLOv8 Localization */}
+        {/* Stage 2: YOLO Plate Localization */}
         <div className="rounded-lg p-3 bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 space-y-1.5 shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stage 2 · YOLOv8</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Stage 2 · YOLO</span>
             <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-bold">{yolo.latency_ms || 180} ms</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Target Localization</span>
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Plate Localization</span>
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 uppercase">
-              {yolo.class_name || 'Vehicle'}
+              {yolo.class_name || 'Plate'}
             </span>
           </div>
           <div className="text-[11px] text-slate-500 space-y-0.5">
             <div>Confidence: <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{yolo.confidence_percent || '88.6%'}</span></div>
-            <div>BBox: <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400">{JSON.stringify(yolo.bbox || [75, 89, 235, 217])}</span></div>
+            <div>BBox: <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400">{JSON.stringify(yolo.bbox || [142, 140, 188, 151])}</span></div>
           </div>
         </div>
 
