@@ -135,13 +135,15 @@ export const VEHICLE_TRAJECTORIES = {
 export function getVehicleRoute(plate) {
   const route = VEHICLE_TRAJECTORIES[plate]
   if (!route) {
-    const fallbackSightings = VEHICLE_TRAJECTORY?.sightings || []
     return {
-      startLoc: fallbackSightings[0]?.location || 'Dispatch Point',
-      destLoc: fallbackSightings[fallbackSightings.length - 1]?.location || 'Destination',
-      totalDistanceKm: 12.0,
+      startLoc: 'MG Road Junction (CAM-001)',
+      destLoc: 'Shivajinagar Circle (CAM-004)',
+      totalDistanceKm: 8.5,
       durationSec: 300,
-      waypoints: fallbackSightings,
+      waypoints: [
+        { camera: 'CAM-001', lat: 18.5196, lng: 73.8553, time: '09:42 AM', location: 'MG Road Junction', label: 'MG Road Junction', speed: '35 km/h' },
+        { camera: 'CAM-004', lat: 18.5308, lng: 73.8474, time: '10:15 AM', location: 'Shivajinagar Circle', label: 'Shivajinagar Circle', speed: '40 km/h' },
+      ],
     }
   }
   if (Array.isArray(route)) {
@@ -157,6 +159,7 @@ export function getVehicleRoute(plate) {
   }
   return route
 }
+
 
 
 function MapFitBounds({ points }) {
@@ -433,8 +436,33 @@ function VehicleCard({ vehicle, onClick, onShowMap }) {
 }
 
 function VehicleDetail({ vehicle, onClose }) {
+  const [liveSightings, setLiveSightings] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    import('../api/vehicles').then(({ getTrajectory }) => {
+      getTrajectory(vehicle.plate)
+        .then(data => {
+          if (!cancelled && data?.sightings && data.sightings.length > 0) {
+            setLiveSightings(data.sightings.map(s => ({
+              camera: s.camera_id,
+              lat: s.lat,
+              lng: s.lng,
+              time: s.timestamp ? new Date(s.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
+              location: s.camera_name || s.camera_id,
+              label: s.camera_name || s.camera_id,
+              speed: '40 km/h',
+            })))
+          }
+        })
+        .catch(() => {})
+    })
+    return () => { cancelled = true }
+  }, [vehicle.plate])
+
   const routeData = getVehicleRoute(vehicle.plate)
-  const traj = routeData?.waypoints || []
+  const traj = (liveSightings && liveSightings.length > 0) ? liveSightings : (routeData?.waypoints || [])
+
 
   return (
     <div className="slide-in-right fixed top-14 right-0 bottom-0 w-96 z-50 overflow-y-auto bg-white dark:bg-[#101C2D] border-l border-slate-200 dark:border-slate-800 shadow-xl">
