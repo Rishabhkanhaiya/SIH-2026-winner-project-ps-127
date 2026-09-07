@@ -86,6 +86,53 @@ app.add_middleware(
 # Register routes
 app.include_router(router)
 
+from fastapi.responses import HTMLResponse, RedirectResponse
+
+@app.get("/", response_class=HTMLResponse, tags=["Dashboard"])
+async def root_dashboard():
+    """Friendly landing page for Service A so users don't see 404 Not Found."""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Urban Pulse AI — Service A (Perception)</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B1120; color: #F8FAFC; margin: 0; padding: 40px; }}
+            .card {{ max-width: 700px; margin: 0 auto; background: #1E293B; border-radius: 12px; padding: 32px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }}
+            h1 {{ color: #38BDF8; margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 24px; }}
+            .badge {{ background: #0284C7; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }}
+            .status {{ background: #10B981; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }}
+            p {{ color: #94A3B8; line-height: 1.6; font-size: 14px; }}
+            .btn {{ display: inline-block; background: #0284C7; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; margin-top: 15px; margin-right: 10px; transition: background 0.2s; }}
+            .btn:hover {{ background: #0369A1; }}
+            .btn-outline {{ background: transparent; border: 1px solid #475569; color: #CBD5E1; }}
+            .btn-outline:hover {{ background: #334155; }}
+            .box {{ background: #0F172A; border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #1E293B; font-family: monospace; font-size: 13px; }}
+            .box div {{ margin-bottom: 6px; }}
+            .highlight {{ color: #38BDF8; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>Urban Pulse AI — Service A <span class="status">ONLINE</span></h1>
+            <p><strong>M1 Perception Microservice</strong> is up and actively listening on port <code>8001</code>.</p>
+            
+            <div class="box">
+                <div>• <strong>YOLO Plate Detector:</strong> <span class="highlight">Loaded & Ready</span></div>
+                <div>• <strong>Colab GPU OCR Engine:</strong> <span class="highlight">{settings.colab_ocr_url or 'Local EasyOCR Fallback'}</span></div>
+                <div>• <strong>Forwarding to Service B:</strong> <span class="highlight">{settings.service_b_url}</span></div>
+                <div>• <strong>Model Version:</strong> {settings.model_version}</div>
+            </div>
+
+            <p>To inspect and test the API directly in your browser:</p>
+            <a href="/docs" class="btn">Open Swagger Interactive Docs (/docs)</a>
+            <a href="/health" class="btn btn-outline">Check Health (/health)</a>
+            <a href="http://localhost:5173" class="btn btn-outline">Go to Frontend UI (Port 5173)</a>
+        </div>
+    </body>
+    </html>
+    """
+
 
 # ──────────────────────────────────────────────────────────────────
 # Global exception handler (Part C error shape)
