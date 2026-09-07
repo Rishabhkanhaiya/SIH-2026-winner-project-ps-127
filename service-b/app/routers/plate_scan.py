@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import logging
 import random
@@ -26,6 +27,11 @@ from app.schemas import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/vehicles", tags=["Plate Scanner & Investigation"])
+
+# High-speed in-memory scan cache
+_scan_cache: Dict[str, Tuple[str, float, dict, dict, str]] = {}
+_scan_cache_keys: List[str] = []
+MAX_CACHE_ENTRIES = 128
 
 # Global singleton for YOLO
 _plate_model = None
@@ -350,6 +356,17 @@ def _run_ocr_pipeline(
     colab_url = (override_url or get_colab_url() or "").strip().rstrip("/")
     errors = []
 
+    # High-speed image hash cache check
+    img_hash = hashlib.sha256(image_bytes).hexdigest()
+    if img_hash in _scan_cache:
+        cached_result = _scan_cache[img_hash]
+        logger.info("⚡ In-memory cache hit for image (%s) -> returning in <1ms", img_hash[:8])
+        c_plate, c_conf, c_comp, c_tele, c_b64 = cached_result
+        ret_tele = dict(c_tele)
+        ret_tele["cache_hit"] = True
+        ret_tele["total_latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+        return c_plate, c_conf, c_comp, ret_tele, c_b64
+
     # ── Stage 1: OpenCV Ingestion & Validation ────────────────────
     frame = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_COLOR)
     if frame is None or frame.size == 0:
@@ -491,6 +508,14 @@ def _run_ocr_pipeline(
         },
         "total_latency_ms": total_elapsed_ms,
     }
+
+    # Cache successful detection in-memory for zero-latency repeat lookups
+    if clean_plate:
+        if len(_scan_cache_keys) >= MAX_CACHE_ENTRIES:
+            oldest = _scan_cache_keys.pop(0)
+            _scan_cache.pop(oldest, None)
+        _scan_cache[img_hash] = (clean_plate, confidence, components, pipeline_telemetry, crop_b64)
+        _scan_cache_keys.append(img_hash)
 
     return clean_plate, confidence, components, pipeline_telemetry, crop_b64
 
