@@ -28,7 +28,7 @@ export default function PersonTracking() {
         </div>
         <div>
           <div className="text-sm font-semibold text-blue-900 dark:text-blue-300">Privacy Notice</div>
-          <div className="text-xs text-blue-700 dark:text-blue-400/80 mt-0.5">This capability is restricted to authorized officers. All searches are logged and audited per PDPA guidelines. Use only for active investigations.</div>
+          <div className="text-xs text-blue-700 dark:text-blue-400/80 mt-0.5">This Module of the project is under development. All the data that would be shown should not be confused with real data. </div>
         </div>
       </div>
 

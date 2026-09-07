@@ -95,6 +95,8 @@ class Alert(Base):
     status = Column(String(32), nullable=False, default="new")  # new / acknowledged / resolved
     message = Column(Text, nullable=False)
     plate_number = Column(String(32), nullable=True)
+    reasons = Column(Text, nullable=True)        # JSON-encoded list e.g. '["impossible_speed"]'
+    anomaly_score = Column(Float, nullable=True)  # null until Phase 2 IsolationForest
 
     camera_obj = relationship("Camera", back_populates="alerts")
 

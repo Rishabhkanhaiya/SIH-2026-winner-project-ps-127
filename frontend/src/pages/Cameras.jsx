@@ -3,7 +3,8 @@ import {
   Camera, Maximize2, Search, Eye, Crosshair, Wifi, WifiOff,
   Wrench, Car, Users, Signal, TrendingUp, ShieldAlert
 } from 'lucide-react'
-import { CAMERAS } from '../data/mockData'
+import { useApi } from '../hooks/useApi'
+import { getCameras } from '../api/cameras'
 
 const GRID_CONFIGS = {
   '2x2': { cols: 2, count: 4 },
@@ -241,6 +242,16 @@ export default function Cameras() {
   const [layout, setLayout] = useState('3x3')
   const [search, setSearch] = useState('')
   const { cols, count } = GRID_CONFIGS[layout]
+
+  // Real API data
+  const { data: camerasRaw, loading } = useApi(getCameras, [])
+  const CAMERAS = (camerasRaw || []).map(c => ({
+    ...c,
+    id: c.camera_id || c.id,
+    vehicles_today: c.vehicles_today || 0,
+    pedestrians_today: c.pedestrians_today || 0,
+    uptime: c.uptime || 99.0,
+  }))
 
   const displayCameras = CAMERAS
     .filter(c => !search || c.id.toLowerCase().includes(search.toLowerCase()) || c.name.toLowerCase().includes(search.toLowerCase()))

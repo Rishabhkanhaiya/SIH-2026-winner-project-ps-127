@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr, field_validator
+from typing import Optional, List, Any
+from pydantic import BaseModel
 
 
 # ─────────────── Auth ───────────────
@@ -81,15 +81,45 @@ class SightingOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SightingInTrajectory(BaseModel):
+    """Sighting shape used inside trajectory response (per Part E.3 spec)."""
+    sighting_id: str          # str form of the int id
+    camera_id: str
+    camera_name: str
+    lat: float
+    lng: float
+    timestamp: datetime
+    confidence: float
+    confidence_band: str
+
+    model_config = {"from_attributes": True}
+
+
+class TrajectoryResponse(BaseModel):
+    """GET /api/v1/trajectory/{plate_number} — Part E.3 spec shape."""
+    plate_number: str
+    total_sightings: int
+    sightings: List[SightingInTrajectory]
+
+
 class IngestPayload(BaseModel):
     plate_number: str
     camera_id: str
-    lat: float
-    lng: float
+    lat: Optional[float] = None
+    lng: Optional[float] = None
     confidence: float
+    confidence_band: Optional[str] = None   # auto-computed if omitted
+    vote_count: Optional[int] = 1
     timestamp: Optional[datetime] = None
     track_id: Optional[str] = None
     image_url: Optional[str] = None
+
+
+class IngestResponse(BaseModel):
+    """POST /api/v1/ingest — Part E.2 spec shape."""
+    status: str = "saved"
+    sighting_id: str
+    alert_triggered: bool
 
 
 # ─────────────── Incident ───────────────
@@ -142,8 +172,21 @@ class AlertOut(BaseModel):
     status: str
     message: str
     plate_number: Optional[str] = None
+    reasons: Optional[List[str]] = None      # populated for ANOMALY type; null for BLACKLIST_MATCH
+    anomaly_score: Optional[float] = None    # null until Phase 2
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm_with_reasons(cls, obj):
+        import json
+        data = {c.key: getattr(obj, c.key) for c in obj.__class__.__table__.columns}
+        if data.get("reasons"):
+            try:
+                data["reasons"] = json.loads(data["reasons"])
+            except Exception:
+                data["reasons"] = None
+        return cls(**data)
 
 
 # ─────────────── Blacklist ───────────────

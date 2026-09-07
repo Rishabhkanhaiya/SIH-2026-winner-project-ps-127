@@ -1,3 +1,10 @@
+"""
+alerts.py — Alert REST endpoints and WebSocket push (M4b).
+
+GET  /api/v1/alerts
+POST /api/v1/alerts/{id}/acknowledge
+WS   /ws/alerts?token=<jwt>
+"""
 import asyncio
 import json
 from datetime import datetime
@@ -13,6 +20,7 @@ from app.models import Alert, User
 from app.schemas import AlertOut
 
 router = APIRouter(tags=["Alerts"])
+
 
 # ─── Connection Manager for WebSocket ─────────────────────────────────────────
 
@@ -42,9 +50,33 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+def _serialize_alert(alert: Alert) -> dict:
+    """Serialize an Alert ORM object into the spec-compliant shape (Part E.6)."""
+    reasons = None
+    if alert.reasons:
+        try:
+            reasons = json.loads(alert.reasons)
+        except Exception:
+            reasons = None
+    return {
+        "type": "ALERT",
+        "id": alert.id,
+        "alert_type": alert.alert_type,
+        "severity": alert.severity,
+        "camera_id": alert.camera_id,
+        "location": alert.location,
+        "timestamp": alert.timestamp.isoformat() if alert.timestamp else None,
+        "status": alert.status,
+        "message": alert.message,
+        "plate_number": alert.plate_number,
+        "reasons": reasons,
+        "anomaly_score": alert.anomaly_score,
+    }
+
+
 # ─── REST Endpoints ───────────────────────────────────────────────────────────
 
-@router.get("/api/v1/alerts", response_model=List[AlertOut])
+@router.get("/api/v1/alerts")
 def list_alerts(
     severity: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -58,10 +90,12 @@ def list_alerts(
         q = q.filter(Alert.severity == severity)
     if status:
         q = q.filter(Alert.status == status)
-    return q.order_by(Alert.timestamp.desc()).offset(offset).limit(limit).all()
+    alerts = q.order_by(Alert.timestamp.desc()).offset(offset).limit(limit).all()
+    # Manually serialize to include reasons as parsed list
+    return [_serialize_alert(a) for a in alerts]
 
 
-@router.post("/api/v1/alerts/{alert_id}/acknowledge", response_model=AlertOut)
+@router.post("/api/v1/alerts/{alert_id}/acknowledge")
 def acknowledge_alert(
     alert_id: int,
     db: Session = Depends(get_db),
@@ -75,7 +109,7 @@ def acknowledge_alert(
     alert.status = "acknowledged"
     db.commit()
     db.refresh(alert)
-    return alert
+    return _serialize_alert(alert)
 
 
 # ─── WebSocket ────────────────────────────────────────────────────────────────
@@ -92,27 +126,16 @@ async def websocket_alerts(ws: WebSocket, token: Optional[str] = Query(None)):
 
     await manager.connect(ws)
     try:
-        # Send last 5 alerts on connect
+        # Send last 10 alerts on connect so UI is immediately populated
         db: Session = SessionLocal()
         try:
-            recent = db.query(Alert).order_by(Alert.timestamp.desc()).limit(5).all()
+            recent = db.query(Alert).order_by(Alert.timestamp.desc()).limit(10).all()
             for alert in reversed(recent):
-                await ws.send_json({
-                    "type": "alert",
-                    "id": alert.id,
-                    "alert_type": alert.alert_type,
-                    "severity": alert.severity,
-                    "camera_id": alert.camera_id,
-                    "location": alert.location,
-                    "timestamp": alert.timestamp.isoformat(),
-                    "status": alert.status,
-                    "message": alert.message,
-                    "plate_number": alert.plate_number,
-                })
+                await ws.send_json(_serialize_alert(alert))
         finally:
             db.close()
 
-        # Keep alive — ping every 30 seconds
+        # Keep-alive — ping every 30 seconds
         while True:
             await asyncio.sleep(30)
             await ws.send_json({"type": "ping", "ts": datetime.utcnow().isoformat()})

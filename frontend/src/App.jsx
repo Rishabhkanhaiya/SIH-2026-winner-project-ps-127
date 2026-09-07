@@ -14,6 +14,7 @@ import TrafficAnalytics from './pages/TrafficAnalytics'
 import Reports from './pages/Reports'
 import SystemHealth from './pages/SystemHealth'
 import Settings from './pages/Settings'
+import { isAuthenticated, logout as apiLogout } from './api/auth'
 
 function MainLayout({ onLogout }) {
   return (
@@ -42,31 +43,22 @@ function MainLayout({ onLogout }) {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    try {
-      const stored = localStorage.getItem('urbanpulse_user')
-      if (stored === null) {
-        // Default to logged in so user sees dashboard directly on launch
-        localStorage.setItem('urbanpulse_user', JSON.stringify({ username: 'admin', role: 'Command Officer' }))
-        return true
-      }
-      return !!stored
-    } catch {
-      return true
-    }
-  })
+  const [isLoggedIn, setIsLoggedIn] = useState(() => isAuthenticated())
 
-  const handleLogin = (username) => {
-    try {
-      localStorage.setItem('urbanpulse_user', JSON.stringify({ username: username || 'admin', role: 'Command Officer' }))
-    } catch {}
+  // Listen for auth changes triggered by the 401 interceptor (page reload handles it,
+  // but we also re-check on focus in case token was cleared in another tab)
+  useEffect(() => {
+    const onFocus = () => setIsLoggedIn(isAuthenticated())
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
+
+  const handleLogin = () => {
     setIsLoggedIn(true)
   }
 
   const handleLogout = () => {
-    try {
-      localStorage.removeItem('urbanpulse_user')
-    } catch {}
+    apiLogout()
     setIsLoggedIn(false)
   }
 

@@ -3,7 +3,6 @@ import { Search, Car, MapPin, Clock, ArrowRight, X, Map as MapIcon, Eye, EyeOff,
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { VEHICLES, VEHICLE_TRAJECTORY, CAMERAS } from '../data/mockData'
 import { ConfidenceBadge } from '../components/StatusBadge'
 import { useOsrmRoute } from '../hooks/useOsrmRoute'
 
@@ -534,21 +533,94 @@ function VehicleDetail({ vehicle, onClose }) {
 
 export default function VehicleSearch() {
   const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState([])
   const [selectedVehicle, setSelectedVehicle] = useState(null)
   const [filters, setFilters] = useState({ type: '', color: '' })
   const [mapMode, setMapMode] = useState(null) // null | 'single' | 'all'
   const [mapVehicle, setMapVehicle] = useState(null)
+  const [vehicles, setVehicles] = useState([])
+  const [trajectory, setTrajectory] = useState(null)
+  const [loadingVehicles, setLoadingVehicles] = useState(false)
+  const [loadingTrajectory, setLoadingTrajectory] = useState(false)
 
-  const filtered = VEHICLES.filter(v =>
-    (!query || v.plate.toLowerCase().includes(query.toLowerCase()) || v.type.toLowerCase().includes(query.toLowerCase()) || v.color.toLowerCase().includes(query.toLowerCase())) &&
-    (!filters.type || v.type === filters.type) &&
-    (!filters.color || v.color === filters.color)
+  // Load vehicle list on mount
+  useEffect(() => {
+    setLoadingVehicles(true)
+    import('../api/vehicles').then(({ getVehicles }) =>
+      getVehicles({ limit: 100 })
+        .then(data => setVehicles(Array.isArray(data) ? data : []))
+        .catch(() => setVehicles([]))
+        .finally(() => setLoadingVehicles(false))
+    )
+  }, [])
+
+  // Autocomplete: call /plates/search when query ≥ 2 chars
+  useEffect(() => {
+    if (query.length < 2) {
+      setSuggestions([])
+      return
+    }
+    const timer = setTimeout(() => {
+      import('../api/vehicles').then(({ searchPlates }) =>
+        searchPlates(query, 8)
+          .then(matches => setSuggestions(matches || []))
+          .catch(() => setSuggestions([]))
+      )
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // Load trajectory when a vehicle is selected for map display
+  const loadTrajectory = async (plate) => {
+    setLoadingTrajectory(true)
+    setTrajectory(null)
+    try {
+      const { getTrajectory } = await import('../api/vehicles')
+      const data = await getTrajectory(plate)
+      setTrajectory(data)
+    } catch {
+      setTrajectory(null)
+    } finally {
+      setLoadingTrajectory(false)
+    }
+  }
+
+  // Convert trajectory API response to the waypoints format the map uses
+  const trajectoryWaypoints = trajectory?.sightings?.map(s => ({
+    camera: s.camera_id,
+    lat: s.lat,
+    lng: s.lng,
+    time: s.timestamp ? new Date(s.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
+    location: s.camera_name || s.camera_id,
+    label: s.camera_name || s.camera_id,
+    confidence_band: s.confidence_band,
+  })) || []
+
+  // Normalize vehicle shape from API (plate_number, vehicle_type, color, total_sightings)
+  const normalizeVehicle = (v) => ({
+    plate: v.plate_number || v.plate,
+    type: v.vehicle_type || v.type || 'car',
+    color: v.color || 'Unknown',
+    sightings: v.total_sightings || v.sightings || 0,
+    lastCamera: v.last_camera || '',
+    lastLocation: v.last_location || '',
+    lastSeen: v.first_seen ? new Date(v.first_seen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '',
+    confidence: 0.90,
+    flagged: v.blacklisted || false,
+  })
+
+  const normalized = vehicles.map(normalizeVehicle)
+
+  const filtered = normalized.filter(v =>
+    (!query || v.plate.toLowerCase().includes(query.toLowerCase()) || v.type.toLowerCase().includes(query.toLowerCase())) &&
+    (!filters.type || v.type.toLowerCase() === filters.type.toLowerCase())
   )
 
-  const handleShowSingleMap = (vehicle) => {
+  const handleShowSingleMap = async (vehicle) => {
     setMapVehicle(vehicle)
     setMapMode('single')
     setSelectedVehicle(null)
+    await loadTrajectory(vehicle.plate)
   }
 
   const handleShowAllMap = () => {
@@ -560,7 +632,22 @@ export default function VehicleSearch() {
   const closeMap = () => {
     setMapMode(null)
     setMapVehicle(null)
+    setTrajectory(null)
   }
+
+  const handleSelectSuggestion = async (plate) => {
+    setQuery(plate)
+    setSuggestions([])
+    const v = normalized.find(v => v.plate === plate) || { plate, type: 'car', color: 'Unknown', sightings: 0, lastCamera: '', lastLocation: '', lastSeen: '', confidence: 0.90, flagged: false }
+    setMapVehicle(v)
+    setMapMode('single')
+    await loadTrajectory(plate)
+  }
+
+  // Build vehicles for map display (use trajectory waypoints for single vehicle)
+  const mapVehicles = mapMode === 'single' && mapVehicle
+    ? [{ ...mapVehicle, plate: mapVehicle.plate }]
+    : filtered.slice(0, 8)
 
   return (
     <div className="space-y-4">
@@ -569,7 +656,6 @@ export default function VehicleSearch() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Vehicle Intelligence</h1>
           <p className="text-sm text-slate-500 mt-0.5">Search and investigate vehicles across all cameras</p>
         </div>
-        {/* Show All Trajectories button */}
         <button
           onClick={mapMode === 'all' ? closeMap : handleShowAllMap}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all border ${
@@ -586,46 +672,66 @@ export default function VehicleSearch() {
       {/* Trajectory Map Card Component */}
       {mapMode && (
         <div className="mb-2">
-          <TrajectoryMapCard
-            vehicles={filtered}
-            singleVehicle={mapMode === 'single' ? mapVehicle : null}
-            onClose={closeMap}
-          />
+          {loadingTrajectory ? (
+            <div className="rounded-xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 p-8 text-center text-sm text-slate-400">
+              Loading trajectory from database...
+            </div>
+          ) : (
+            <TrajectoryMapCard
+              vehicles={mapVehicles}
+              singleVehicle={mapMode === 'single' ? mapVehicle : null}
+              routeData={mapMode === 'single' ? { waypoints: trajectoryWaypoints, totalDistanceKm: trajectory?.total_sightings || 0 } : null}
+              onClose={closeMap}
+            />
+          )}
         </div>
       )}
 
-      {/* Search */}
+      {/* Search with Autocomplete */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search vehicle number, type, colour, location or camera..."
+          placeholder="Search by plate number (e.g. MH12)..."
           className="w-full pl-12 pr-10 py-3 text-sm rounded-xl outline-none bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-[#F8FAFC] placeholder-slate-400 focus:border-blue-500 shadow-sm transition-colors"
         />
         {query && (
-          <button onClick={() => setQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+          <button onClick={() => { setQuery(''); setSuggestions([]) }} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white">
             <X className="w-4 h-4" />
           </button>
+        )}
+        {/* Autocomplete dropdown */}
+        {suggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+            {suggestions.map(plate => (
+              <button
+                key={plate}
+                onClick={() => handleSelectSuggestion(plate)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-blue-50 dark:hover:bg-blue-500/10 border-b border-slate-100 dark:border-slate-800 last:border-0"
+              >
+                <Car className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <span className="font-mono text-blue-600 dark:text-blue-400 font-semibold">{plate}</span>
+                <ArrowRight className="w-3 h-3 text-slate-400 ml-auto" />
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap items-center">
-        {['Vehicle Number', 'Vehicle Type', 'Colour', 'Time Range', 'Location', 'Camera'].map(f => (
-          <button key={f} className="px-3 py-1.5 text-xs font-medium rounded-full bg-slate-100 dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all">
-            {f}
-          </button>
-        ))}
         <select value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}
           className="px-3 py-1.5 text-xs rounded-full outline-none bg-slate-100 dark:bg-[#162438] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
           <option value="">All Types</option>
-          {['Sedan', 'SUV', 'Hatchback', 'Truck', 'Bus', 'Motorcycle'].map(t => <option key={t} value={t}>{t}</option>)}
+          {['car', 'bike', 'truck', 'bus', 'auto'].map(t => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
 
       {/* Count */}
-      <div className="text-sm text-slate-500">{filtered.length} vehicle{filtered.length !== 1 ? 's' : ''} found</div>
+      <div className="text-sm text-slate-500">
+        {loadingVehicles ? 'Loading vehicles...' : `${filtered.length} vehicle${filtered.length !== 1 ? 's' : ''} found`}
+      </div>
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 gap-4">
@@ -637,6 +743,11 @@ export default function VehicleSearch() {
             onShowMap={handleShowSingleMap}
           />
         ))}
+        {!loadingVehicles && filtered.length === 0 && (
+          <div className="col-span-2 text-center py-12 text-sm text-slate-400">
+            {query ? `No vehicles matching "${query}"` : 'No vehicles in database yet'}
+          </div>
+        )}
       </div>
 
       {/* Detail Drawer */}
@@ -646,3 +757,4 @@ export default function VehicleSearch() {
     </div>
   )
 }
+

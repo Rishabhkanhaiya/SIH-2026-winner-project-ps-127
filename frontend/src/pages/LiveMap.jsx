@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { Layers, Camera, Car, Users, AlertTriangle, Activity, Map } from 'lucide-react'
 import CityMap from '../components/CityMap'
 import { StatusBadge } from '../components/StatusBadge'
-import { CAMERAS, ALERTS } from '../data/mockData'
+import { useApi } from '../hooks/useApi'
+import { getCameras } from '../api/cameras'
 
 const LAYERS = [
   { key: 'traffic', label: 'Traffic', icon: Activity },
@@ -84,6 +85,9 @@ export default function LiveMap() {
   const [activeLayers, setActiveLayers] = useState(['cameras', 'incidents'])
   const [selectedCamera, setSelectedCamera] = useState(null)
 
+  // Real cameras from API
+  const { data: cameras } = useApi(getCameras, [])
+
   const toggleLayer = (key) => {
     setActiveLayers(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
   }
@@ -97,62 +101,12 @@ export default function LiveMap() {
       <div className="absolute inset-0">
         <CityMap
           height="100%"
+          cameras={cameras}
           selectedCamera={selectedCamera}
           onCameraSelect={setSelectedCamera}
           showIncidents={activeLayers.includes('incidents')}
         />
       </div>
-
-      {/* Layer Filter Panel — top-left */}
-      <div className="absolute top-4 left-4 z-40 flex flex-col gap-2">
-        <div className="rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider bg-white/90 dark:bg-[#101C2D]/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
-          Map Layers
-        </div>
-        <div className="rounded-xl overflow-hidden bg-white/90 dark:bg-[#101C2D]/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
-          {LAYERS.map(({ key, label, icon: Icon }) => {
-            const active = activeLayers.includes(key)
-            return (
-              <button
-                key={key}
-                onClick={() => toggleLayer(key)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all border-b border-slate-100 dark:border-slate-800/60 last:border-0 ${
-                  active
-                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{label}</span>
-                <div className={`ml-auto w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                  active ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-400 dark:border-slate-600'
-                }`}>
-                  {active && <span className="text-[10px] font-bold">✓</span>}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Stats overlay — top-right (hidden when camera panel open) */}
-      {!selectedCamera && (
-        <div className="absolute top-4 right-4 z-40">
-          <div className="rounded-xl p-4 space-y-3 min-w-48 bg-white/90 dark:bg-[#101C2D]/90 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-md">
-            <div className="text-xs font-bold text-slate-700 dark:text-slate-400 uppercase tracking-wider">Zone Overview</div>
-            {[
-              { label: 'Cameras Active', value: '17/20', color: 'text-green-600 dark:text-green-400' },
-              { label: 'Vehicles Now',   value: '1,240', color: 'text-slate-900 dark:text-white' },
-              { label: 'Active Incidents', value: '8',  color: 'text-red-600 dark:text-red-400' },
-              { label: 'Traffic Flow',   value: '74%',  color: 'text-green-600 dark:text-green-400' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">{label}</span>
-                <span className={`text-sm font-bold ${color}`}>{value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Camera detail panel — right side drawer */}
       {selectedCamera && (
@@ -163,3 +117,4 @@ export default function LiveMap() {
     </div>
   )
 }
+

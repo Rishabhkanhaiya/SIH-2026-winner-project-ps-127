@@ -16,6 +16,20 @@ logger = logging.getLogger(__name__)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Ensure legacy sqlite schema has newly added columns
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            result = conn.execute(text("PRAGMA table_info(alerts)")).fetchall()
+            cols = [r[1] for r in result]
+            if "reasons" not in cols:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN reasons TEXT"))
+            if "anomaly_score" not in cols:
+                conn.execute(text("ALTER TABLE alerts ADD COLUMN anomaly_score FLOAT"))
+            conn.commit()
+    except Exception as e:
+        logger.warning(f"Schema column check: {e}")
+
     db = SessionLocal()
     try:
         from app.models import User as UserModel
@@ -29,6 +43,7 @@ def init_db():
             logger.info(f"ℹ️  Database already has {user_count} user(s) — skipping seed")
     finally:
         db.close()
+
 
 
 # Ensure tables and seed exist on import for testing and standalone execution

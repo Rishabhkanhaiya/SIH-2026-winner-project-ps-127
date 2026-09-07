@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   AlertTriangle, Bell, ShieldAlert, PlusCircle, Filter, CheckCircle,
   Eye, Camera, MapPin, Clock, User, Search, X, ShieldCheck,
@@ -7,6 +7,10 @@ import {
 import { INCIDENTS, ALERTS, BLACKLIST, CAMERAS } from '../data/mockData'
 import { SeverityBadge, PriorityBadge, ConfidenceBadge, StatusBadge } from '../components/StatusBadge'
 import { formatDistanceToNow } from 'date-fns'
+import { getIncidents, createIncident, updateIncident } from '../api/incidents'
+import { getAlerts, acknowledgeAlert } from '../api/alerts'
+import { getBlacklist } from '../api/blacklist'
+import { getCameras } from '../api/cameras'
 
 const INCIDENT_ICONS = {
   'Wrong-way Vehicle': '🚗',
@@ -51,6 +55,67 @@ export default function IncidentFlagging() {
   const [incidents, setIncidents] = useState(INCIDENTS)
   const [alerts, setAlerts] = useState(ALERTS)
   const [watchlist, setWatchlist] = useState(BLACKLIST)
+  const [cameraList, setCameraList] = useState(CAMERAS)
+
+  // Live fetch from backend on mount
+  useEffect(() => {
+    getIncidents().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setIncidents(data.map(inc => ({
+          id: inc.id,
+          type: inc.incident_type,
+          priority: inc.priority,
+          status: inc.status,
+          camera: inc.camera_id || 'CAM-001',
+          location: inc.location,
+          lat: inc.lat,
+          lng: inc.lng,
+          time: inc.detected_at ? formatDistanceToNow(new Date(inc.detected_at), { addSuffix: true }) : 'Recently',
+          confidence: inc.ai_confidence || 0.90,
+          description: inc.description,
+          assigned: inc.assigned_to || 'Officer Kumar',
+        })))
+      }
+    }).catch(() => {})
+
+    getAlerts(100, 0).then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setAlerts(data.map(a => ({
+          id: a.id,
+          event: a.message,
+          plate: a.plate_number,
+          camera: a.camera_id || 'CAM-001',
+          location: a.location,
+          severity: a.severity,
+          status: a.status,
+          timestamp: a.timestamp ? new Date(a.timestamp) : new Date(),
+        })))
+      }
+    }).catch(() => {})
+
+    getBlacklist().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setWatchlist(data.map(bl => ({
+          id: bl.id,
+          plate: bl.plate_number,
+          reason: bl.reason,
+          addedBy: bl.added_by,
+          date: bl.added_at ? new Date(bl.added_at).toLocaleDateString() : 'Active',
+          status: 'Active',
+          priority: 'CRITICAL',
+        })))
+      }
+    }).catch(() => {})
+
+    getCameras().then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        setCameraList(data.map(c => ({
+          ...c,
+          id: c.camera_id || c.id,
+        })))
+      }
+    }).catch(() => {})
+  }, [])
 
   // Incident filters
   const [incidentStatusFilter, setIncidentStatusFilter] = useState('active')
@@ -109,7 +174,10 @@ export default function IncidentFlagging() {
   })
 
   // Handlers
-  const handleAcknowledgeAlert = (id) => {
+  const handleAcknowledgeAlert = async (id) => {
+    try {
+      await acknowledgeAlert(id)
+    } catch {}
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, status: 'acknowledged' } : a))
   }
 
@@ -134,24 +202,30 @@ export default function IncidentFlagging() {
       description: `Escalated from live alert stream: ${alert.event} (Plate: ${alert.plate || 'N/A'})`,
     }
     setIncidents(prev => [newInc, ...prev])
-    setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: 'acknowledged' } : a))
+    handleAcknowledgeAlert(alert.id)
     setMainTab('incidents')
     setIncidentStatusFilter('active')
   }
 
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await updateIncident(id, { status: newStatus })
+    } catch {}
     setIncidents(prev => prev.map(inc => inc.id === id ? { ...inc, status: newStatus } : inc))
     if (selectedIncident && selectedIncident.id === id) {
       setSelectedIncident(prev => ({ ...prev, status: newStatus }))
     }
   }
 
-  const handleAssignOfficer = (id, officer) => {
+  const handleAssignOfficer = async (id, officer) => {
+    try {
+      await updateIncident(id, { assigned_to: officer, status: 'investigating' })
+    } catch {}
     setIncidents(prev => prev.map(inc => inc.id === id ? { ...inc, assigned: officer, status: inc.status === 'active' ? 'investigating' : inc.status } : inc))
   }
 
   const handleCameraChange = (camId) => {
-    const cam = CAMERAS.find(c => c.id === camId)
+    const cam = cameraList.find(c => c.id === camId)
     setFormData(prev => ({
       ...prev,
       camera: camId,
@@ -159,11 +233,27 @@ export default function IncidentFlagging() {
     }))
   }
 
-  const handleCreateIncidentSubmit = (e) => {
+  const handleCreateIncidentSubmit = async (e) => {
     e.preventDefault()
     if (!formData.description.trim()) {
       alert('Please enter a brief description for this incident.')
       return
+    }
+
+    try {
+      await createIncident({
+        incident_type: formData.type,
+        priority: formData.priority,
+        camera_id: formData.camera,
+        location: formData.location,
+        lat: 18.5204,
+        lng: 73.8567,
+        description: formData.description.trim(),
+        assigned_to: formData.assigned,
+        ai_confidence: 0.95,
+      })
+    } catch (err) {
+      console.warn('API incident create error:', err)
     }
 
     const newIncident = {
@@ -194,6 +284,7 @@ export default function IncidentFlagging() {
     setMainTab('incidents')
     setIncidentStatusFilter('active')
   }
+
 
   return (
     <div className="space-y-6">
@@ -783,11 +874,12 @@ export default function IncidentFlagging() {
                     onChange={(e) => handleCameraChange(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-lg bg-slate-50 dark:bg-[#08111F] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white outline-none focus:border-blue-500"
                   >
-                    {CAMERAS.map(c => (
+                    {cameraList.map(c => (
                       <option key={c.id} value={c.id}>{c.id} — {c.name}</option>
                     ))}
                   </select>
                 </div>
+
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">

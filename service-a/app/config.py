@@ -35,5 +35,16 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Remote Google Colab Qwen2.5-VL GPU OCR Endpoint (Optional)
+    # Set this to your Colab tunnel URL (e.g. "https://xxxx.trycloudflare.com")
+    colab_ocr_url: str | None = None
+
+    # Service B (main backend) — used for auto-forwarding consensus reads to /ingest
+    service_b_url: str = "http://localhost:8000"
+    ingest_api_key: str = "urban-pulse-m1-api-key-2024"
+
+    # Set to False to disable automatic forwarding of consensus reads to Service B
+    auto_forward_to_service_b: bool = True
+
 
 settings = Settings()

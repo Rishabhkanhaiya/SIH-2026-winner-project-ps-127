@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import { Zap, Shield, User, Lock, Eye, EyeOff, LogIn, Sparkles, CheckCircle2 } from 'lucide-react'
 import ThemeToggle from '../components/ThemeToggle'
+import { login } from '../api/auth'
 
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('password123')
+  const [password, setPassword] = useState('admin123')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     if (!username.trim()) {
@@ -17,16 +18,28 @@ export default function LoginPage({ onLogin }) {
       return
     }
     setIsLoading(true)
-    setTimeout(() => {
-      onLogin(username.trim())
-    }, 300)
+    try {
+      await login(username.trim(), password)
+      onLogin()
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Login failed. Check credentials.'
+      setError(msg)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDemoLogin = (demoRole = 'admin') => {
+  const handleDemoLogin = async () => {
     setIsLoading(true)
-    setTimeout(() => {
-      onLogin(demoRole)
-    }, 200)
+    setError('')
+    try {
+      await login('admin', 'admin123')
+      onLogin()
+    } catch (err) {
+      setError('Demo login failed. Make sure Service B is running on port 8000.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (

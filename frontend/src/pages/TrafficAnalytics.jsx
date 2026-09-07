@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   TrendingUp, Clock, Gauge, Users, Car, AlertTriangle,
   Calendar, Layers, ArrowUpRight, ArrowDownRight, Activity, MapPin
 } from 'lucide-react'
-import {
-  TRAFFIC_24H, VEHICLE_TYPES, INCIDENTS_BY_HOUR, CAMERA_ACTIVITY, CAMERAS
-} from '../data/mockData'
+import { useApi } from '../hooks/useApi'
+import { getSummary, getTrafficByHour, getCameraActivity } from '../api/analytics'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -50,13 +49,32 @@ export default function TrafficAnalytics() {
   const [timeHorizon, setTimeHorizon] = useState('today')
   const [selectedZone, setSelectedZone] = useState('All Zones')
 
+  // Real API data
+  const { data: summary } = useApi(getSummary, [])
+  const { data: trafficRaw } = useApi(getTrafficByHour, [])
+  const { data: cameraActivityRaw } = useApi(getCameraActivity, [])
+
+  // Normalize traffic data from API (hour, count, label) → (hour, vehicles)
+  const TRAFFIC_24H = (trafficRaw || []).map(d => ({
+    hour: d.label || `${String(d.hour).padStart(2, '0')}:00`,
+    vehicles: d.count,
+  }))
+
+  // Camera activity for charts
+  const CAMERA_ACTIVITY = (cameraActivityRaw || []).map(c => ({
+    camera: c.camera_id,
+    name: c.name,
+    vehicles: c.sightings_today,
+  }))
+
   // Multiplier based on time horizon
   const multiplier = timeHorizon === 'today' ? 1 : timeHorizon === '7d' ? 6.8 : 28.5
 
-  const totalVehiclesDisplay = Math.round(12400 * multiplier).toLocaleString()
-  const totalFootfallDisplay = Math.round(34200 * multiplier).toLocaleString()
+  const totalVehiclesDisplay = summary?.total_vehicles_today != null
+    ? Math.round(summary.total_vehicles_today * multiplier).toLocaleString()
+    : '—'
 
-  // Filtered cameras for the zone matrix
+  // Filtered cameras for the zone matrix (kept for display, now uses real camera data)
   const filteredZoneStats = useMemo(() => {
     if (selectedZone === 'All Zones') return ZONE_STATS
     return ZONE_STATS.filter(z => z.zone === selectedZone)

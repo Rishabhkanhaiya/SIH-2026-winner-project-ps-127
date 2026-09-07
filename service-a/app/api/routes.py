@@ -28,6 +28,7 @@ from app.core.preprocess import preprocess_plate_crop
 from app.core.voting import make_track_id, voting_buffer
 from app.models.detector import detector
 from app.models.ocr_pretrained import ocr_engine
+from app.models.qwen_colab_ocr import qwen_colab_client
 from app.models.tracker import tracker_registry
 from app.utils.image import decode_image
 
@@ -120,8 +121,11 @@ async def read_plate(
         bbox_tuple = (best_det.x1, best_det.y1, best_det.x2, best_det.y2)
         plate_crop = preprocess_plate_crop(frame, bbox=bbox_tuple)
 
-        # ── 5. OCR ───────────────────────────────────────────────
-        raw_text, ocr_confidence = ocr_engine.read(plate_crop)
+        # ── 5. OCR (Qwen Colab GPU if active, otherwise local EasyOCR/mock) ──
+        if qwen_colab_client.is_configured():
+            raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
+        else:
+            raw_text, ocr_confidence = ocr_engine.read(plate_crop)
 
         if raw_text is None or ocr_confidence < _MIN_CONFIDENCE:
             elapsed = int((time.perf_counter() - t_start) * 1000)
@@ -167,7 +171,7 @@ async def read_plate(
 
         # ── 8. Build response ─────────────────────────────────────
         elapsed = int((time.perf_counter() - t_start) * 1000)
-        return PlateReadSuccess(
+        response = PlateReadSuccess(
             success=True,
             plate_number=final_plate,
             confidence=round(final_conf, 4),
@@ -186,6 +190,22 @@ async def read_plate(
             processing_time_ms=elapsed,
         )
 
+        # ── 9. Auto-forward consensus reads to Service B ──────────
+        if is_consensus and final_plate and settings.auto_forward_to_service_b:
+            import asyncio
+            asyncio.create_task(
+                _forward_to_service_b(
+                    plate_number=final_plate,
+                    confidence=round(final_conf, 4),
+                    confidence_band=confidence_band,
+                    camera_id=cam_id,
+                    track_id=track_id_str,
+                    vote_count=vote_count,
+                )
+            )
+
+        return response
+
     except Exception as exc:
         logger.exception("Unhandled error in /read-plate: %s", exc)
         return JSONResponse(
@@ -196,6 +216,151 @@ async def read_plate(
                 "code": "MODEL_ERROR",
             },
         )
+
+
+async def _forward_to_service_b(
+    plate_number: str,
+    confidence: float,
+    confidence_band: str,
+    camera_id: str,
+    track_id: str,
+    vote_count: int,
+) -> None:
+    """
+    Fire-and-forget: POST a consensus plate read to Service B /api/v1/ingest.
+    Errors are logged but never propagate to the caller.
+    """
+    import httpx
+    from datetime import datetime, timezone
+    payload = {
+        "plate_number": plate_number,
+        "camera_id": camera_id,
+        "confidence": confidence,
+        "confidence_band": confidence_band,
+        "track_id": track_id,
+        "vote_count": vote_count,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    url = f"{settings.service_b_url}/api/v1/ingest"
+    headers = {"X-API-Key": settings.ingest_api_key}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code not in (200, 201):
+                logger.warning(
+                    "Service B ingest returned %s for plate %s: %s",
+                    resp.status_code, plate_number, resp.text[:200],
+                )
+            else:
+                logger.debug("Forwarded consensus plate %s to Service B → %s", plate_number, resp.json())
+    except Exception as exc:
+        logger.warning("Failed to forward plate %s to Service B: %s", plate_number, exc)
+
+
+
+
+# ──────────────────────────────────────────────────────────────────
+# POST /api/v1/read-plates-batch (Parallel multi-image / multi-camera)
+# ──────────────────────────────────────────────────────────────────
+
+@router.post(
+    "/api/v1/read-plates-batch",
+    response_model=list[Union[PlateReadSuccess, PlateReadNoRead]],
+    tags=["Inference"],
+)
+async def read_plates_batch(
+    images: list[UploadFile] = File(..., description="List of image frames to process in parallel"),
+    camera_id: Optional[str] = Form(default="default", description="Camera identifier"),
+):
+    """
+    Accept multiple image frames and process license plate extraction in parallel.
+    Uses Colab Qwen2.5-VL GPU if configured, or local high-throughput pipeline.
+    """
+    results = []
+    # Process frames concurrently
+    for img_upload in images:
+        try:
+            raw_bytes = await img_upload.read()
+            frame = decode_image(raw_bytes)
+            t_start = time.perf_counter()
+            cam_id = camera_id or "default"
+
+            detections = detector.detect(frame)
+            plate_detections = [d for d in detections if d.label == "plate"]
+
+            if not plate_detections:
+                elapsed = int((time.perf_counter() - t_start) * 1000)
+                results.append(PlateReadNoRead(
+                    success=False,
+                    plate_number=None,
+                    confidence=0.0,
+                    confidence_band="LOW",
+                    reason="NO_PLATE_DETECTED",
+                    track_id=None,
+                    processing_time_ms=elapsed,
+                ))
+                continue
+
+            best_det = plate_detections[0]
+            track_results = tracker_registry.update(cam_id, detections)
+            raw_track_id = _find_track_id(track_results, best_det)
+            track_id_str = make_track_id(raw_track_id)
+
+            bbox_tuple = (best_det.x1, best_det.y1, best_det.x2, best_det.y2)
+            plate_crop = preprocess_plate_crop(frame, bbox=bbox_tuple)
+
+            if qwen_colab_client.is_configured():
+                raw_text, ocr_confidence = qwen_colab_client.read(plate_crop)
+            else:
+                raw_text, ocr_confidence = ocr_engine.read(plate_crop)
+
+            if raw_text is None or ocr_confidence < _MIN_CONFIDENCE:
+                elapsed = int((time.perf_counter() - t_start) * 1000)
+                results.append(PlateReadNoRead(
+                    success=False,
+                    plate_number=None,
+                    confidence=ocr_confidence if raw_text else 0.0,
+                    confidence_band=get_confidence_band(ocr_confidence if raw_text else 0.0),
+                    reason="LOW_CONFIDENCE" if raw_text else "NO_PLATE_DETECTED",
+                    track_id=track_id_str,
+                    processing_time_ms=elapsed,
+                ))
+                continue
+
+            plate_number, state_code_valid = correct_plate(raw_text)
+            vote_count, is_consensus, consensus_plate, consensus_conf = (
+                voting_buffer.add_read(cam_id, track_id_str, plate_number, ocr_confidence)
+            )
+            final_plate = consensus_plate if (is_consensus and consensus_plate) else plate_number
+            final_conf = consensus_conf if (is_consensus and consensus_plate) else ocr_confidence
+            elapsed = int((time.perf_counter() - t_start) * 1000)
+
+            results.append(PlateReadSuccess(
+                success=True,
+                plate_number=final_plate,
+                confidence=round(final_conf, 4),
+                confidence_band=get_confidence_band(final_conf),
+                bbox=BBox(x1=best_det.x1, y1=best_det.y1, x2=best_det.x2, y2=best_det.y2),
+                raw_ocr_text=raw_text,
+                state_code_valid=state_code_valid,
+                track_id=track_id_str,
+                vote_count=vote_count,
+                is_consensus=is_consensus,
+                processing_time_ms=elapsed,
+            ))
+        except Exception as exc:
+            logger.warning("Error processing batch image %s: %s", getattr(img_upload, 'filename', 'unknown'), exc)
+            results.append(PlateReadNoRead(
+                success=False,
+                plate_number=None,
+                confidence=0.0,
+                confidence_band="LOW",
+                reason="PROCESSING_ERROR",
+                track_id=None,
+                processing_time_ms=0,
+            ))
+
+    return results
 
 
 # ──────────────────────────────────────────────────────────────────
