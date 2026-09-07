@@ -128,6 +128,11 @@ def _positional_correct(s: str) -> str:
     return "".join(result)
 
 
-def is_valid_plate_format(plate: str) -> bool:
-    """Return True if the plate matches standard Indian plate format."""
-    return bool(_PLATE_PATTERN.match(plate.replace(" ", "").upper()))
+def is_valid_plate_format(plate: str, strict: bool = True) -> bool:
+    """Return True if the plate matches standard Indian plate format, or 4-12 alphanumeric chars if strict=False."""
+    cleaned = plate.replace(" ", "").replace("-", "").upper()
+    if _PLATE_PATTERN.match(cleaned):
+        return True
+    if not strict:
+        return bool(re.match(r"^[A-Z0-9]{4,12}$", cleaned))
+    return False

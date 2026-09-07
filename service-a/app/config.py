@@ -46,5 +46,8 @@ class Settings(BaseSettings):
     # Set to False to disable automatic forwarding of consensus reads to Service B
     auto_forward_to_service_b: bool = True
 
+    # Plate format validation: if False, accepts alphanumeric plates (4-12 chars) e.g. CityFlow dataset
+    strict_indian_plate_format: bool = False
+
 
 settings = Settings()

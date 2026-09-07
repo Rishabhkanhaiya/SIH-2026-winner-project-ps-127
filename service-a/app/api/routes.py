@@ -143,7 +143,7 @@ async def read_plate(
         plate_number, state_code_valid = correct_plate(raw_text)
 
         # Validate format — if it's completely wrong, flag INVALID_FORMAT
-        if not is_valid_plate_format(plate_number):
+        if not is_valid_plate_format(plate_number, strict=settings.strict_indian_plate_format):
             elapsed = int((time.perf_counter() - t_start) * 1000)
             confidence_band = get_confidence_band(ocr_confidence)
             return PlateReadNoRead(
