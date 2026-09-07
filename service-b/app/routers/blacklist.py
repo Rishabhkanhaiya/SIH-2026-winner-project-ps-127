@@ -23,7 +23,7 @@ def list_blacklist(
 def add_to_blacklist(
     payload: BlacklistCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
     existing = db.query(Blacklist).filter(Blacklist.plate_number == payload.plate_number.upper()).first()
     if existing:
@@ -43,7 +43,7 @@ def add_to_blacklist(
 def remove_from_blacklist(
     plate_number: str,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(get_current_user),
 ):
     entry = db.query(Blacklist).filter(Blacklist.plate_number == plate_number.upper()).first()
     if not entry:

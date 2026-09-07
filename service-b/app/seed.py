@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_password_hash
 from app.models import (
     User, Camera, Vehicle, Sighting, Incident, Alert,
-    Blacklist, Person, PersonSighting, Report,
+    Blacklist, Person, PersonSighting, Report, Challan,
 )
 
 # ─────────────── Helpers ───────────────
@@ -326,3 +326,46 @@ def seed_all(db: Session) -> None:
     print(f"[Seed] OK Persons: {len(person_objects)}")
     print(f"[Seed] OK Person Sightings: {len(ps_objects)}")
     print(f"[Seed] OK Reports: {len(report_objects)}")
+
+
+def seed_challans_if_empty(db: Session) -> None:
+    """Seed sample E-Challans if none exist in the database."""
+    if db.query(Challan).count() > 0:
+        return
+
+    sample_challans = [
+        ("CH-2026-0901-1021", "MH12AB1234", "Speeding (> 85 km/h in 50 km/h zone)", 2000.0, "Baner Road Junction (CAM-008)", "CAM-008", "unpaid", "officer1", "Captured by automated speed radar sensor"),
+        ("CH-2026-0903-4512", "MH12AB1234", "Red Light Jumping", 1000.0, "Shivajinagar Station (CAM-004)", "CAM-004", "paid", "admin", "Crossed stop line after red signal activated"),
+        ("CH-2026-0905-8821", "DL01AB2345", "Wrong Way Driving / Reverse Transit", 5000.0, "Pimpri Chowk (CAM-016)", "CAM-016", "unpaid", "officer1", "Vehicle entered one-way corridor against traffic direction"),
+        ("CH-2026-0906-9930", "KA03MN9993", "Fancy / Stylized Non-MoRTH Plate", 1000.0, "Wakad Bridge (CAM-013)", "CAM-013", "unpaid", "officer1", "Registration characters formatted in decorative calligraphic script"),
+        ("CH-2026-0907-3319", "UP32GH7890", "Triple Riding & No Helmet", 1000.0, "Kothrud Depot (CAM-005)", "CAM-005", "unpaid", "officer1", "Rider and pillion observed without protective headgear"),
+        ("CH-2026-0907-7740", "MH14EF5678", "Unauthorized Bus Lane Transit", 2000.0, "Swargate Junction (CAM-003)", "CAM-003", "unpaid", "officer1", "Encroached BRTS corridor during peak hours"),
+    ]
+
+    for ch_no, plate, v_type, fine, loc, cam, st, issued_by, notes in sample_challans:
+        if not db.query(Vehicle).filter(Vehicle.plate_number == plate).first():
+            v = Vehicle(
+                plate_number=plate,
+                vehicle_type="car",
+                color="Silver",
+                first_seen=datetime.utcnow() - timedelta(days=10),
+                total_sightings=8,
+            )
+            db.add(v)
+            db.flush()
+
+        c = Challan(
+            challan_no=ch_no,
+            plate_number=plate,
+            violation_type=v_type,
+            fine_amount=fine,
+            location=loc,
+            camera_id=cam,
+            status=st,
+            issued_at=datetime.utcnow() - timedelta(days=random.randint(1, 7)),
+            issued_by=issued_by,
+            notes=notes,
+        )
+        db.add(c)
+    db.commit()
+    print("[Seed] OK Sample E-Challans seeded successfully")

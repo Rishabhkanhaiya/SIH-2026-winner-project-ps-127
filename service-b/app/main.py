@@ -8,6 +8,7 @@ from app.database import engine, SessionLocal, Base
 from app.routers import (
     auth, cameras, sightings, anpr, incidents, alerts,
     analytics, blacklist, persons, reports, system,
+    challans, plate_scan,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(message)s")
@@ -40,7 +41,9 @@ def init_db():
             seed_all(db)
             logger.info("✅ Seed complete")
         else:
-            logger.info(f"ℹ️  Database already has {user_count} user(s) — skipping seed")
+            logger.info(f"ℹ️  Database already has {user_count} user(s) — checking challans...")
+            from app.seed import seed_challans_if_empty
+            seed_challans_if_empty(db)
     finally:
         db.close()
 
@@ -91,6 +94,8 @@ app.include_router(blacklist.router)
 app.include_router(persons.router)
 app.include_router(reports.router)
 app.include_router(system.router)
+app.include_router(challans.router)
+app.include_router(plate_scan.router)
 
 
 @app.get("/health", tags=["System"])

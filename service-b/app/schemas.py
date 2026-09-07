@@ -332,3 +332,54 @@ class SystemMetrics(BaseModel):
     storage_total_gb: float
     active_connections: int
     requests_per_minute: int
+
+
+# ─────────────── Challan (E-Ticket) ───────────────
+
+class ChallanBase(BaseModel):
+    plate_number: str
+    violation_type: str
+    fine_amount: float
+    location: str
+    camera_id: Optional[str] = None
+    notes: Optional[str] = None
+    evidence_url: Optional[str] = None
+
+
+class ChallanCreate(ChallanBase):
+    pass
+
+
+class ChallanOut(ChallanBase):
+    id: int
+    challan_no: str
+    status: str
+    issued_at: datetime
+    issued_by: str
+
+    model_config = {"from_attributes": True}
+
+
+class ChallanUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+# ─────────────── Plate Scan & Investigation ───────────────
+
+class PlateScanResponse(BaseModel):
+    success: bool
+    plate_number: str
+    formatted_plate: str
+    confidence: float
+    confidence_band: str
+    components: Optional[dict] = None
+    is_valid_structure: bool = True
+    vehicle: Optional[VehicleOut] = None
+    is_blacklisted: bool = False
+    blacklist_info: Optional[BlacklistOut] = None
+    challans: List[ChallanOut] = []
+    total_unpaid_fines: float = 0.0
+    trajectory: Optional[TrajectoryResponse] = None
+    evidence_image_url: Optional[str] = None
+    message: Optional[str] = None

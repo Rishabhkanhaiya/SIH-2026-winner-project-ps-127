@@ -61,3 +61,5 @@ desktop.ini
 prd_extracted.txt
 prd_chunk*.txt
 prd_*.txt
+~$*.docx
+

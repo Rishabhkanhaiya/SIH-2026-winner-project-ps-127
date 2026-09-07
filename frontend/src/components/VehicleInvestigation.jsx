@@ -1,0 +1,574 @@
+import React, { useState, useRef, useEffect } from 'react'
+import {
+  Upload, Camera, ShieldAlert, FileText, CheckCircle2,
+  AlertTriangle, RefreshCw, X, ShieldCheck, DollarSign,
+  MapPin, Clock, Car, ChevronRight, AlertCircle, ArrowRight
+} from 'lucide-react'
+import { scanPlatePhoto } from '../api/scan'
+import { issueChallan, getChallans, payChallan } from '../api/challans'
+import { addToBlacklist, removeFromBlacklist } from '../api/blacklist'
+
+export const VIOLATION_PRESETS = [
+  { label: 'Overspeeding (> 85 km/h in 50 km/h zone)', fine: 2000, category: 'Speeding' },
+  { label: 'Red Light Signal Violation', fine: 1000, category: 'Signal' },
+  { label: 'Wrong-Way / Reverse Corridor Transit', fine: 5000, category: 'Dangerous Driving' },
+  { label: 'Non-Standard / Fancy / Defective Plate (MoRTH)', fine: 1000, category: 'Registration' },
+  { label: 'Triple Riding / Driving Without Helmet', fine: 1000, category: 'Safety' },
+  { label: 'Driving Without Seatbelt', fine: 1000, category: 'Safety' },
+  { label: 'Unauthorized Bus Rapid Transit (BRTS) Lane', fine: 2000, category: 'Lane Violation' },
+  { label: 'Gross Vehicle Pollution / Expired PUC', fine: 10000, category: 'Environment' },
+]
+
+export const BLACKLIST_REASONS = [
+  'Stolen Vehicle / Active FIR Registered',
+  'Suspect Vehicle in Hit & Run Investigation',
+  'Evading Police Checkpoint / High-Speed Pursuit',
+  'Counterfeit / High-Risk Cloned Number Plate',
+  'Armed Robbery / Gang Transit Watchlist',
+  'Officer Field Discretion / Surveillance Required',
+]
+
+/**
+ * High-Security Registration Plate (HSRP) Visual Badge
+ */
+export function HsrpPlateBadge({ plateNumber, size = 'normal' }) {
+  const isLarge = size === 'large'
+  return (
+    <div
+      className={`inline-flex items-center rounded border-2 border-slate-900 bg-white font-mono font-black text-slate-950 shadow-md ${
+        isLarge ? 'px-3 py-1.5 text-xl tracking-widest' : 'px-2 py-0.5 text-sm tracking-wider'
+      }`}
+      style={{ letterSpacing: isLarge ? '0.2em' : '0.12em' }}
+    >
+      {/* Blue IND stripe */}
+      <div className={`mr-2 flex flex-col items-center justify-center rounded-sm bg-blue-700 px-1 py-0.5 text-white ${
+        isLarge ? 'text-[9px] leading-tight' : 'text-[7px] leading-none'
+      }`}>
+        <span className="font-bold">IND</span>
+        <span className="text-[6px]">🇮🇳</span>
+      </div>
+      <span>{plateNumber}</span>
+    </div>
+  )
+}
+
+/**
+ * Issue E-Challan Modal Dialog
+ */
+export function IssueChallanModal({ isOpen, onClose, plateNumber, defaultLocation, onSuccess }) {
+  const [violation, setViolation] = useState(VIOLATION_PRESETS[0].label)
+  const [fineAmount, setFineAmount] = useState(VIOLATION_PRESETS[0].fine)
+  const [location, setLocation] = useState(defaultLocation || 'FC Road Signal (CAM-002)')
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (defaultLocation) setLocation(defaultLocation)
+  }, [defaultLocation])
+
+  const handleViolationChange = (e) => {
+    const selected = e.target.value
+    setViolation(selected)
+    const preset = VIOLATION_PRESETS.find(p => p.label === selected)
+    if (preset) setFineAmount(preset.fine)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      const res = await issueChallan({
+        plate_number: plateNumber,
+        violation_type: violation,
+        fine_amount: Number(fineAmount),
+        location,
+        notes,
+      })
+      if (onSuccess) onSuccess(res)
+      onClose()
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to issue challan')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-150">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center">
+              <FileText className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Issue Official E-Challan</h2>
+              <p className="text-xs text-slate-500">Ministry of Road Transport & Highways E-Ticket</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-3 text-xs text-red-600 dark:text-red-400 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Vehicle Registration</label>
+            <div className="mt-1">
+              <HsrpPlateBadge plateNumber={plateNumber} size="normal" />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Violation Type</label>
+            <select
+              value={violation}
+              onChange={handleViolationChange}
+              className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500"
+            >
+              {VIOLATION_PRESETS.map(p => (
+                <option key={p.label} value={p.label}>
+                  {p.label} (₹{p.fine.toLocaleString('en-IN')})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Fine Penalty (₹)</label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">₹</span>
+                <input
+                  type="number"
+                  value={fineAmount}
+                  onChange={e => setFineAmount(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] pl-7 pr-3 py-2 text-sm font-semibold text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Violation Location</label>
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Officer Remarks / Sensor Evidence</label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="e.g. Captured by high-speed radar sensor, driver observed exceeding corridor limits..."
+              className="mt-1 w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+            >
+              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+              <span>Issue Official E-Challan</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Add / Remove Blacklist Modal Dialog
+ */
+export function BlacklistModal({ isOpen, onClose, plateNumber, isBlacklisted, onSuccess }) {
+  const [reason, setReason] = useState(BLACKLIST_REASONS[0])
+  const [customReason, setCustomReason] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleConfirm = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      if (isBlacklisted) {
+        await removeFromBlacklist(plateNumber)
+      } else {
+        const finalReason = customReason.trim() ? `${reason}: ${customReason.trim()}` : reason
+        await addToBlacklist(plateNumber, finalReason)
+      }
+      if (onSuccess) onSuccess(!isBlacklisted)
+      onClose()
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Operation failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isBlacklisted ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600' : 'bg-red-100 dark:bg-red-500/20 text-red-600'
+            }`}>
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                {isBlacklisted ? 'Revoke Vehicle Blacklist' : 'Add Vehicle to Watchlist'}
+              </h2>
+              <p className="text-xs text-slate-500">Live City Police Alert Network</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-700">
+          <div className="text-xs text-slate-500 mb-1">Target Registration</div>
+          <HsrpPlateBadge plateNumber={plateNumber} size="normal" />
+        </div>
+
+        {error && (
+          <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-2.5 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {!isBlacklisted && (
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Reason for Watchlist Flag</label>
+            <select
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
+            >
+              {BLACKLIST_REASONS.map(r => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              placeholder="Additional case reference / FIR details (optional)..."
+              value={customReason}
+              onChange={e => setCustomReason(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#162438] px-3 py-2 text-xs text-slate-900 dark:text-white outline-none"
+            />
+          </div>
+        )}
+
+        {isBlacklisted && (
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Are you sure you want to remove this vehicle from the critical watchlist?
+            Automated alerts at checkpoints and toll plazas will be deactivated.
+          </p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-all ${
+              isBlacklisted ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+            }`}
+          >
+            {loading ? 'Processing...' : isBlacklisted ? 'Remove from Blacklist' : 'Flag & Blacklist Vehicle'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Challan History Modal / Viewer
+ */
+export function ChallanHistoryModal({ isOpen, onClose, plateNumber, onIssueNew }) {
+  const [challans, setChallans] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchList = () => {
+    setLoading(true)
+    getChallans({ plate_number: plateNumber })
+      .then(data => setChallans(Array.isArray(data) ? data : []))
+      .catch(() => setChallans([]))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (isOpen && plateNumber) {
+      fetchList()
+    }
+  }, [isOpen, plateNumber])
+
+  const handlePay = async (id) => {
+    try {
+      await payChallan(id)
+      fetchList()
+    } catch {}
+  }
+
+  if (!isOpen) return null
+
+  const unpaidTotal = challans.filter(c => c.status === 'unpaid').reduce((acc, c) => acc + (c.fine_amount || 0), 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#162438]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">E-Challan Dossier</h2>
+                <HsrpPlateBadge plateNumber={plateNumber} size="normal" />
+              </div>
+              <p className="text-xs text-slate-500">Official Municipal Traffic Fines Record</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 dark:hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-3 bg-slate-100 dark:bg-[#132237] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="text-xs text-slate-600 dark:text-slate-300">
+            Total Outstanding Fines: <span className="font-bold text-red-600 dark:text-red-400 font-mono">₹{unpaidTotal.toLocaleString('en-IN')}</span>
+          </div>
+          <button
+            onClick={() => { onClose(); onIssueNew(); }}
+            className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+          >
+            + Issue New Challan
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-3">
+          {loading ? (
+            <div className="py-12 text-center text-sm text-slate-400">Loading fine records...</div>
+          ) : challans.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400">
+              <ShieldCheck className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-60" />
+              No traffic challans found for this vehicle. Clean record!
+            </div>
+          ) : (
+            challans.map(ch => (
+              <div
+                key={ch.id}
+                className="rounded-xl p-4 bg-slate-50 dark:bg-[#162438] border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">{ch.challan_no}</span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                      ch.status === 'paid'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                    }`}>
+                      {ch.status}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                    {ch.violation_type}
+                  </div>
+                  <div className="text-xs text-slate-500 flex items-center gap-3">
+                    <span>{ch.location}</span>
+                    <span>·</span>
+                    <span>{new Date(ch.issued_at).toLocaleDateString('en-IN')}</span>
+                    <span>·</span>
+                    <span>Officer: {ch.issued_by}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <div className="text-base font-extrabold text-slate-900 dark:text-white font-mono">
+                      ₹{ch.fine_amount.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                  {ch.status === 'unpaid' && (
+                    <button
+                      onClick={() => handlePay(ch.id)}
+                      className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm"
+                    >
+                      Mark Paid
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * AI Number Plate Photo Scanner & Dropzone Widget
+ */
+export function PlateScannerDropzone({ onScanComplete, onSelectSample }) {
+  const [dragging, setDragging] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [error, setError] = useState('')
+  const fileInputRef = useRef(null)
+
+  const handleFile = async (file) => {
+    if (!file) return
+    setScanning(true)
+    setError('')
+    try {
+      const result = await scanPlatePhoto(file)
+      if (onScanComplete) onScanComplete(result)
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Failed to scan plate photo. Please try again.')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const onDrop = (e) => {
+    e.preventDefault()
+    setDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0])
+    }
+  }
+
+  return (
+    <div className="rounded-2xl bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+            <Camera className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">AI Plate Scanner & Investigation</h3>
+            <p className="text-xs text-slate-500">Upload plate snap to immediately retrieve trajectory, history & enforcement actions</p>
+          </div>
+        </div>
+        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+          Qwen2.5-VL Powered
+        </span>
+      </div>
+
+      {/* Dropzone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+          dragging
+            ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-500/10'
+            : 'border-slate-300 dark:border-slate-700 hover:border-blue-400 bg-slate-50/50 dark:bg-[#162438]/50'
+        }`}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+
+        {scanning ? (
+          <div className="flex flex-col items-center justify-center py-4 space-y-3">
+            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+            <div className="space-y-1">
+              <div className="text-sm font-bold text-slate-900 dark:text-white">Analyzing License Plate with Qwen2.5-VL...</div>
+              <div className="text-xs text-slate-500">Executing Super-Resolution Lanczos Upscaling & MoRTH Grammar Verification</div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Upload className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">Click to upload photo</span>
+              <span className="text-sm text-slate-500"> or drag and drop image</span>
+            </div>
+            <p className="text-xs text-slate-400">Supports PNG, JPG, JPEG from CCTV crops or mobile capture</p>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 p-2.5 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Preset Demo Samples */}
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <span className="text-xs font-semibold text-slate-500">Quick Test Presets:</span>
+        {[
+          { plate: 'MH 12 AB 1234', label: 'MH 12 AB 1234 (Pune Central)' },
+          { plate: 'KA 03 MN 9993', label: 'KA 03 MN 9993 (Karnataka HSRP)' },
+          { plate: 'DL 01 AB 2345', label: 'DL 01 AB 2345 (Delhi)' },
+          { plate: 'UP 32 GH 7890', label: 'UP 32 GH 7890 (Lucknow)' },
+        ].map(sample => (
+          <button
+            key={sample.plate}
+            type="button"
+            onClick={() => onSelectSample(sample.plate)}
+            className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#162438] text-slate-700 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700 transition-colors"
+          >
+            {sample.plate}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

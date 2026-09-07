@@ -152,3 +152,23 @@ class Report(Base):
     file_size = Column(String(32), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by = Column(String(64), nullable=False)
+
+
+class Challan(Base):
+    __tablename__ = "challans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    challan_no = Column(String(64), unique=True, nullable=False, index=True)
+    plate_number = Column(String(32), ForeignKey("vehicles.plate_number"), nullable=False, index=True)
+    violation_type = Column(String(64), nullable=False)   # Speeding / Red Light / Wrong Way / Fancy Plate / etc.
+    fine_amount = Column(Float, nullable=False, default=1000.0)
+    location = Column(String(128), nullable=False)
+    camera_id = Column(String(32), ForeignKey("cameras.camera_id"), nullable=True)
+    status = Column(String(32), nullable=False, default="unpaid")  # unpaid / paid / disputed / cancelled
+    issued_at = Column(DateTime, default=datetime.utcnow, index=True)
+    issued_by = Column(String(64), nullable=False)  # Officer username
+    notes = Column(Text, nullable=True)
+    evidence_url = Column(String(256), nullable=True)
+
+    vehicle = relationship("Vehicle", foreign_keys=[plate_number], primaryjoin="Challan.plate_number == Vehicle.plate_number")
+    camera_obj = relationship("Camera", foreign_keys=[camera_id], primaryjoin="Challan.camera_id == Camera.camera_id")
