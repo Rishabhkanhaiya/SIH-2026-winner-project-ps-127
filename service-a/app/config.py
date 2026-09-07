@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Remote Google Colab Qwen2.5-VL GPU OCR Endpoint (Optional)
     # Set this to your Colab tunnel URL (e.g. "https://xxxx.trycloudflare.com")
-    colab_ocr_url: str | None = None
+    colab_ocr_url: str | None = "https://hopefully-mixed-responses-aged.trycloudflare.com"
 
     # Service B (main backend) — used for auto-forwarding consensus reads to /ingest
     service_b_url: str = "http://localhost:8000"
