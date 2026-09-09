@@ -27,6 +27,12 @@ def init_db():
                 conn.execute(text("ALTER TABLE alerts ADD COLUMN reasons TEXT"))
             if "anomaly_score" not in cols:
                 conn.execute(text("ALTER TABLE alerts ADD COLUMN anomaly_score FLOAT"))
+
+            cam_result = conn.execute(text("PRAGMA table_info(cameras)")).fetchall()
+            cam_cols = [r[1] for r in cam_result]
+            if "video_url" not in cam_cols:
+                conn.execute(text("ALTER TABLE cameras ADD COLUMN video_url TEXT"))
+
             conn.commit()
     except Exception as e:
         logger.warning(f"Schema column check: {e}")
@@ -101,6 +107,13 @@ app.include_router(reports.router)
 app.include_router(system.router)
 app.include_router(challans.router)
 app.include_router(plate_scan.router)
+
+# Static files mount for videos and assets
+from fastapi.staticfiles import StaticFiles
+import os
+static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 @app.get("/health", tags=["System"])

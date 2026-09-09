@@ -15,27 +15,27 @@ import { getCameras } from '../api/cameras'
 const INCIDENT_ICONS = {
   'Wrong-way Vehicle': '🚗',
   'Unauthorized Entry': '🚷',
-  'Crowd Gathering': '👥',
+  'Lane Obstruction / Stalled Vehicle': '🚧',
   'Abandoned Vehicle': '🚙',
   'Speeding Vehicle': '💨',
   'Traffic Accident': '💥',
   'Blacklist Match': '🔴',
   'Signal Jump': '🚦',
   'Road Blockage': '🚧',
-  'Pedestrian Safety': '🚶',
+  'Signal Violation': '🚦',
 }
 
 const INCIDENT_TYPES = [
   'Wrong-way Vehicle',
   'Unauthorized Entry',
-  'Crowd Gathering',
+  'Lane Obstruction / Stalled Vehicle',
   'Abandoned Vehicle',
   'Speeding Vehicle',
   'Traffic Accident',
   'Blacklist Match',
   'Signal Jump',
   'Road Blockage',
-  'Pedestrian Safety',
+  'Signal Violation',
 ]
 
 const OFFICERS = [
@@ -74,6 +74,7 @@ export default function IncidentFlagging() {
           confidence: inc.ai_confidence || 0.90,
           description: inc.description,
           assigned: inc.assigned_to || 'Officer Kumar',
+          video_url: inc.video_url || `/videos/cam_${String(inc.camera_id || '001').replace('CAM-', '')}.mp4`,
         })))
       }
     }).catch(() => {})

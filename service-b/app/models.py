@@ -27,6 +27,7 @@ class Camera(Base):
     lng = Column(Float, nullable=False)
     zone = Column(String(64), nullable=False)
     status = Column(String(16), nullable=False, default="online")  # online / offline
+    video_url = Column(String(512), nullable=True)
     last_seen = Column(DateTime, default=datetime.utcnow)
 
     sightings = relationship("Sighting", back_populates="camera_obj")

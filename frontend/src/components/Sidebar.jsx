@@ -2,7 +2,7 @@ import React from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Map, Camera, TrendingUp, Search,
-  Users, AlertTriangle, FileText, Activity,
+  AlertTriangle, FileText, Activity,
   Zap, LogOut, User, ChevronRight, Radio
 } from 'lucide-react'
 
@@ -12,7 +12,6 @@ export const NAV_ITEMS = [
   { path: '/cameras',   label: 'Cameras',            icon: Camera          },
   { path: '/traffic',   label: 'Traffic Analytics',  icon: TrendingUp      },
   { path: '/vehicles',  label: 'Vehicle Search',     icon: Search          },
-  { path: '/persons',   label: 'Person Tracking',    icon: Users           },
   { path: '/incidents', label: 'Incident Flagging',  icon: AlertTriangle   },
   { path: '/system',    label: 'System Health',      icon: Activity        },
 ]

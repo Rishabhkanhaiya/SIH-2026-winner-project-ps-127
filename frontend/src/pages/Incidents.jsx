@@ -8,14 +8,14 @@ const TABS = ['active', 'investigating', 'resolved']
 const INCIDENT_ICONS = {
   'Wrong-way Vehicle': '🚗',
   'Unauthorized Entry': '🚷',
-  'Crowd Gathering': '👥',
+  'Lane Obstruction / Stalled Vehicle': '🚧',
   'Abandoned Vehicle': '🚙',
   'Speeding Vehicle': '💨',
   'Traffic Accident': '💥',
   'Blacklist Match': '🔴',
   'Signal Jump': '🚦',
   'Road Blockage': '🚧',
-  'Pedestrian Safety': '🚶',
+  'Signal Violation': '🚦',
 }
 
 function IncidentCard({ incident }) {
@@ -23,17 +23,38 @@ function IncidentCard({ incident }) {
   const isHigh = incident.priority === 'HIGH'
   const isMed = incident.priority === 'MEDIUM'
   const borderStripe = isHigh ? 'border-l-red-500' : isMed ? 'border-l-amber-500' : 'border-l-blue-500'
+  const videoSrc = incident.video_url || `/videos/cam_${String(incident.camera || '001').replace('CAM-', '')}.mp4`
 
   return (
     <div className={`rounded-xl overflow-hidden transition-all bg-white dark:bg-[#101C2D] border border-slate-200 dark:border-slate-800 border-l-4 ${borderStripe} shadow-sm`}>
-      {/* Thumbnail */}
-      <div className="h-28 relative flex items-center justify-center bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-        <span className="text-4xl">{INCIDENT_ICONS[incident.type] || '⚠️'}</span>
-        <div className="absolute top-3 left-3">
+      {/* Live Looping Video Feed Thumbnail */}
+      <div className="h-32 relative bg-black border-b border-slate-200 dark:border-slate-800 overflow-hidden group">
+        <video
+          src={videoSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
           <PriorityBadge priority={incident.priority} />
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/60 text-white border border-slate-700">
+            {incident.camera}
+          </span>
         </div>
-        <div className="absolute top-3 right-3">
-          <ConfidenceBadge value={incident.ai_confidence} />
+        <div className="absolute top-2.5 right-2.5">
+          <ConfidenceBadge value={incident.confidence || incident.ai_confidence || 0.95} />
+        </div>
+        <div className="absolute bottom-2 left-2.5 flex items-center gap-1.5 text-white text-xs font-bold">
+          <span>{INCIDENT_ICONS[incident.type] || '⚠️'}</span>
+          <span className="truncate max-w-[170px]">{incident.type}</span>
+        </div>
+        <div className="absolute bottom-2 right-2.5">
+          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-slate-300">
+            REC ●
+          </span>
         </div>
       </div>
 

@@ -47,3 +47,38 @@ def generate_report(
     db.commit()
     db.refresh(report)
     return report
+
+
+@router.get("/{report_id}/pdf")
+def download_report_pdf(
+    report_id: int,
+    db: Session = Depends(get_db),
+):
+    """Generate and return authentic downloadable PDF document."""
+    from fastapi.responses import Response
+    from app.reports_pdf import generate_report_pdf, REPORT_METADATA
+
+    pdf_bytes = generate_report_pdf(report_id)
+    meta = REPORT_METADATA.get(report_id, REPORT_METADATA[1])
+    filename = f"{meta['ref']}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        }
+    )
+
+
+@router.get("/{report_id}/view")
+def view_report_data(
+    report_id: int,
+    db: Session = Depends(get_db),
+):
+    """Retrieve structured template data for in-app PDF preview rendering."""
+    from fastapi.responses import JSONResponse
+    from app.reports_pdf import REPORT_METADATA
+
+    meta = REPORT_METADATA.get(report_id, REPORT_METADATA[1])
+    return JSONResponse(content=meta)

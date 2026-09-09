@@ -28,3 +28,9 @@ export async function createCamera(payload) {
   const { data } = await client.post('/api/v1/cameras', payload)
   return data
 }
+
+/** DELETE /api/v1/cameras/{camera_id} — delete camera. */
+export async function deleteCamera(cameraId) {
+  const { data } = await client.delete(`/api/v1/cameras/${cameraId}`)
+  return data
+}

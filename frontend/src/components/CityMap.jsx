@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet'
 import L from 'leaflet'
 import { CAMERAS, INCIDENTS } from '../data/mockData'
 import { useTheme } from '../context/ThemeContext'
+import KeplerHeatmap from './KeplerHeatmap'
 
 // Fix Leaflet default marker icon issue with Vite
 delete L.Icon.Default.prototype._getIconUrl
@@ -57,7 +58,15 @@ const incidentIcon = L.divIcon({
   iconAnchor: [14, 14],
 })
 
-export default function CityMap({ height = '100%', selectedCamera, onCameraSelect, showIncidents = true }) {
+export default function CityMap({
+  height = '100%',
+  selectedCamera,
+  onCameraSelect,
+  showIncidents = true,
+  showHeatmap = false,
+  heatmapMode = 'density',
+  showCameras = true,
+}) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const PUNE_CENTER = [18.5204, 73.8567]
@@ -80,8 +89,11 @@ export default function CityMap({ height = '100%', selectedCamera, onCameraSelec
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         />
 
+        {/* Kepler.gl Heatmap Engine Layer */}
+        {showHeatmap && <KeplerHeatmap initialMode={heatmapMode} />}
+
         {/* Camera markers */}
-        {CAMERAS.map(cam => (
+        {showCameras && CAMERAS.map(cam => (
           <Marker
             key={cam.id}
             position={[cam.lat, cam.lng]}

@@ -37,6 +37,7 @@ class CameraBase(BaseModel):
     lng: float
     zone: str
     status: str = "online"
+    video_url: Optional[str] = None
 
 
 class CameraCreate(CameraBase):
@@ -267,10 +268,39 @@ class HeatmapPoint(BaseModel):
     lat: float
     lng: float
     weight: float
+    intensity: Optional[float] = 1.0
+    volume: Optional[int] = 0
+    speed_kmh: Optional[float] = 40.0
+    congestion_pct: Optional[float] = 50.0
+    location: Optional[str] = "Pune Metro Arterial"
+    zone: Optional[str] = "Pune Central"
+    point_type: Optional[str] = "corridor"  # junction / corridor / incident_cluster
+
+
+class CorridorSegment(BaseModel):
+    id: str
+    name: str
+    zone: str
+    congestion_pct: float
+    speed_kmh: float
+    status: str  # Optimal / Moderate / Congested / Severe
+    volume_per_hr: int
+    coordinates: List[List[float]]  # [[lat, lng], [lat, lng], ...]
+
+
+class HeatmapSummary(BaseModel):
+    city: str = "Pune Metro"
+    active_hotspots: int = 0
+    avg_congestion: float = 0.0
+    mode: str = "density"
+    time_window: str = "today"
+    total_points: int = 0
 
 
 class HeatmapResponse(BaseModel):
     points: List[HeatmapPoint]
+    corridors: Optional[List[CorridorSegment]] = []
+    summary: Optional[HeatmapSummary] = None
 
 
 class AnalyticsSummary(BaseModel):
@@ -286,6 +316,7 @@ class AnalyticsSummary(BaseModel):
 class TrafficDataPoint(BaseModel):
     hour: int
     count: int
+    pedestrians: Optional[int] = 0
     label: str
 
 

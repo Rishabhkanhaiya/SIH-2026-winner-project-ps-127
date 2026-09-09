@@ -64,3 +64,9 @@ prd_chunk*.txt
 prd_*.txt
 ~$*.docx
 
+# Video assets (large binaries; served locally or via external storage)
+*.mp4
+*.avi
+frontend/public/videos/
+service-b/static/videos/
+

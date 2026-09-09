@@ -8,7 +8,6 @@ import Overview from './pages/Overview'
 import LiveMap from './pages/LiveMap'
 import Cameras from './pages/Cameras'
 import VehicleSearch from './pages/VehicleSearch'
-import PersonTracking from './pages/PersonTracking'
 import IncidentFlagging from './pages/IncidentFlagging'
 import TrafficAnalytics from './pages/TrafficAnalytics'
 import Reports from './pages/Reports'
@@ -29,7 +28,6 @@ function MainLayout({ onLogout }) {
             <Route path="/cameras" element={<Cameras />} />
             <Route path="/traffic" element={<TrafficAnalytics />} />
             <Route path="/vehicles" element={<VehicleSearch />} />
-            <Route path="/persons" element={<PersonTracking />} />
             <Route path="/incidents" element={<IncidentFlagging />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/system" element={<SystemHealth />} />

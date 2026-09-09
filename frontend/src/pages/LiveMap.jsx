@@ -1,18 +1,15 @@
 import React, { useState } from 'react'
-import { Layers, Camera, Car, Users, AlertTriangle, Activity, Map } from 'lucide-react'
+import { Layers, Camera, Car, AlertTriangle, Activity, Map, Flame } from 'lucide-react'
 import CityMap from '../components/CityMap'
 import { StatusBadge } from '../components/StatusBadge'
 import { useApi } from '../hooks/useApi'
 import { getCameras } from '../api/cameras'
+import { ALERTS } from '../data/mockData'
 
 const LAYERS = [
-  { key: 'traffic', label: 'Traffic', icon: Activity },
+  { key: 'heatmap', label: 'Kepler Heatmap', icon: Flame, badge: 'GPU' },
   { key: 'cameras', label: 'Cameras', icon: Camera },
-  { key: 'vehicles', label: 'Vehicles', icon: Car },
-  { key: 'people', label: 'People', icon: Users },
   { key: 'incidents', label: 'Incidents', icon: AlertTriangle },
-  { key: 'heatmap', label: 'Heatmap', icon: Layers },
-  { key: 'geofences', label: 'Geofences', icon: Map },
 ]
 
 function CameraPanel({ camera, onClose }) {
@@ -82,7 +79,7 @@ function CameraPanel({ camera, onClose }) {
 }
 
 export default function LiveMap() {
-  const [activeLayers, setActiveLayers] = useState(['cameras', 'incidents'])
+  const [activeLayers, setActiveLayers] = useState(['heatmap', 'cameras', 'incidents'])
   const [selectedCamera, setSelectedCamera] = useState(null)
 
   // Real cameras from API
@@ -97,6 +94,38 @@ export default function LiveMap() {
       className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800"
       style={{ height: 'calc(100vh - 56px - 48px)' }}
     >
+      {/* Top-Right Floating Layer Controller Pill */}
+      <div className="absolute top-4 right-4 z-[1000] flex items-center gap-1.5 p-1.5 rounded-xl backdrop-blur-xl bg-white/90 dark:bg-[#0A1220]/90 border border-slate-200/80 dark:border-slate-800 shadow-xl">
+        {LAYERS.map(l => {
+          const active = activeLayers.includes(l.key)
+          const Icon = l.icon
+          return (
+            <button
+              key={l.key}
+              type="button"
+              onClick={() => toggleLayer(l.key)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                active
+                  ? l.key === 'heatmap'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                    : 'bg-blue-600 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{l.label}</span>
+              {l.badge && (
+                <span className={`px-1 py-0.2 rounded text-[9px] font-mono ${
+                  active ? 'bg-white/20 text-white' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                }`}>
+                  {l.badge}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Full-screen map */}
       <div className="absolute inset-0">
         <CityMap
@@ -105,6 +134,8 @@ export default function LiveMap() {
           selectedCamera={selectedCamera}
           onCameraSelect={setSelectedCamera}
           showIncidents={activeLayers.includes('incidents')}
+          showCameras={activeLayers.includes('cameras')}
+          showHeatmap={activeLayers.includes('heatmap')}
         />
       </div>
 

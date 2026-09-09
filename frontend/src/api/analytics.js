@@ -9,9 +9,21 @@ export async function getSummary() {
   return data
 }
 
-/** GET /api/v1/analytics/heatmap — weighted lat/lng points. */
+/** GET /api/v1/analytics/heatmap — weighted lat/lng points, corridors, and summary. */
 export async function getHeatmap(params = {}) {
   const { data } = await client.get('/api/v1/analytics/heatmap', { params })
+  return data
+}
+
+/** GET /api/v1/analytics/heatmap/corridors — transit corridors with congestion metrics. */
+export async function getHeatmapCorridors() {
+  const { data } = await client.get('/api/v1/analytics/heatmap/corridors')
+  return data
+}
+
+/** GET /api/v1/analytics/heatmap/export-kepler — export Kepler.gl-compatible GeoJSON. */
+export async function exportKeplerGeoJSON(params = {}) {
+  const { data } = await client.get('/api/v1/analytics/heatmap/export-kepler', { params })
   return data
 }
 
